@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Order View Layout
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="content">
+            <block class="Montu\Affiliate\Block\Adminhtml\Order\View\AffiliateInfo"
+                   name="montu.affiliate.order.info"
+                   template="Montu_Affiliate::order/view/affiliate_info.phtml"
+                   after="order_info"/>
+        </referenceContainer>
+    </body>
+</page>
+

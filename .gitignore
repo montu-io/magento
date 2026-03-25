@@ -1,0 +1,56 @@
+.vscode
+# Magento vendor (installed via composer)                                                                                                                                                                        
+src/vendor/                                                                                                                                                                                                        
+                                                                                                                                                                                                                  
+# Generated code
+src/generated/
+
+# Magento var (cache, logs, sessions, tmp)                                                                                                                                                                         
+src/var/
+                                                                                                                                                                                                                    
+# Pub static & media                                                                                                                                                                                               
+src/pub/static/
+src/pub/media/                                                                                                                                                                                                     
+                                                                                                                                                                                                                  
+# Node modules
+src/node_modules/
+
+# Magento setup files (auto-generated)                                                                                                                                                                             
+src/setup/
+                                                                                                                                                                                                                    
+# Auth credentials                                                                                                                                                                                               
+src/auth.json
+                                                                                                                                                                                                                    
+# App etc (except config.php)
+src/app/etc/env.php                                                                                                                                                                                                
+src/app/etc/env.php.bak                                                                                                                                                                                          
+                                                                                                                                                                                                                    
+# Magento root files (auto-generated or downloaded)                                                                                                                                                                
+src/bin/                                                                                                                                                                                                           
+src/dev/                                                                                                                                                                                                           
+src/lib/                                                                                                                                                                                                         
+src/phpserver/
+src/update/
+src/nginx.conf*
+src/index.php                                                                                                                                                                                                      
+src/autoload.php
+src/.htaccess                                                                                                                                                                                                      
+src/.htaccess.sample                                                                                                                                                                                             
+src/.php-cs-fixer.dist.php                                                                                                                                                                                         
+src/.user.ini
+src/CHANGELOG.md                                                                                                                                                                                                   
+src/COPYING.txt                                                                                                                                                                                                    
+src/LICENSE*.txt
+src/SECURITY.md                                                                                                                                                                                                    
+src/grunt-config.json.sample                                                                                                                                                                                     
+src/Gruntfile.js.sample                                                                                                                                                                                            
+src/package.json.sample
+                                                                                                                                                                                                                    
+# OS files                                                                                                                                                                                                       
+.DS_Store                                                                                                                                                                                                          
+Thumbs.db                                                                                                                                                                                                        
+
+# IDE
+.idea/
+*.swp
+*.swo

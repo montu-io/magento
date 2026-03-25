@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Default Configuration
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <montu_affiliate>
+            <general>
+                <enabled>0</enabled>
+                <cookie_lifetime>15</cookie_lifetime>
+                <url_parameter>_m_aff</url_parameter>
+                <cookie_name>_montu_aff_ref_code</cookie_name>
+            </general>
+            <webhook>
+                <enabled>0</enabled>
+                <endpoint_url></endpoint_url>
+                <api_key></api_key>
+                <send_on_order_placed>1</send_on_order_placed>
+                <timeout>30</timeout>
+            </webhook>
+        </montu_affiliate>
+    </default>
+</config>
+

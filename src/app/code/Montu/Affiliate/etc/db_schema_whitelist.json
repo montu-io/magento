@@ -1,0 +1,45 @@
+{
+    "montu_affiliate_tracking": {
+        "column": {
+            "entity_id": true,
+            "order_id": true,
+            "quote_id": true,
+            "affiliate_code": true,
+            "created_at": true,
+            "updated_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "MONTU_AFFILIATE_TRACKING_ORDER_ID_UNIQUE": true
+        },
+        "index": {
+            "MONTU_AFFILIATE_TRACKING_QUOTE_ID": true,
+            "MONTU_AFFILIATE_TRACKING_AFFILIATE_CODE": true
+        }
+    },
+    "montu_affiliate_webhook_log": {
+        "column": {
+            "entity_id": true,
+            "order_id": true,
+            "affiliate_code": true,
+            "status": true,
+            "retry_count": true,
+            "max_retries": true,
+            "http_status_code": true,
+            "response_body": true,
+            "error_message": true,
+            "next_retry_at": true,
+            "last_attempt_at": true,
+            "created_at": true,
+            "updated_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "MONTU_AFFILIATE_WEBHOOK_LOG_ORDER_ID_UNIQUE": true
+        },
+        "index": {
+            "MONTU_AFFILIATE_WEBHOOK_LOG_STATUS": true,
+            "MONTU_AFFILIATE_WEBHOOK_LOG_NEXT_RETRY": true
+        }
+    }
+}

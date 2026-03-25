@@ -1,0 +1,32 @@
+<?php
+/**
+ * Montu Affiliate Tracking Extension - Admin Order View Template
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ * @var \Montu\Affiliate\Block\Adminhtml\Order\View\AffiliateInfo $block
+ */
+
+if (!$block->hasAffiliateCode()) {
+    return;
+}
+
+$affiliateCode = $block->escapeHtml($block->getAffiliateCode());
+?>
+
+<section class="admin__page-section">
+    <div class="admin__page-section-title">
+        <span class="title"><?= $block->escapeHtml(__('Montu Affiliate Information')) ?></span>
+    </div>
+    <div class="admin__page-section-content">
+        <div class="admin__page-section-item-content">
+            <table class="admin__table-secondary">
+                <tr>
+                    <th><?= $block->escapeHtml(__('Affiliate Code')) ?></th>
+                    <td><strong><?= $affiliateCode ?></strong></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</section>
+

@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Database Schema
+ * 
+ * Creates separate tables for affiliate tracking data
+ * Does NOT modify any Magento core tables
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    
+    <!-- Montu Affiliate Tracking Table - Stores affiliate codes linked to quotes/orders -->
+    <table name="montu_affiliate_tracking" resource="default" engine="innodb" 
+           comment="Montu Affiliate Tracking Data">
+        
+        <column xsi:type="int" name="entity_id" unsigned="true" nullable="false" 
+                identity="true" comment="Entity ID"/>
+        
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="true" 
+                comment="Sales Order ID"/>
+        
+        <column xsi:type="int" name="quote_id" unsigned="true" nullable="true" 
+                comment="Quote ID"/>
+        
+        <column xsi:type="varchar" name="affiliate_code" nullable="false" length="255" 
+                comment="Affiliate Referral Code"/>
+        
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" 
+                default="CURRENT_TIMESTAMP" comment="Created At"/>
+        
+        <column xsi:type="timestamp" name="updated_at" on_update="true" nullable="false" 
+                default="CURRENT_TIMESTAMP" comment="Updated At"/>
+        
+        <!-- Primary Key -->
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        
+        <!-- Unique constraint on order_id (one affiliate per order) -->
+        <constraint xsi:type="unique" referenceId="MONTU_AFFILIATE_TRACKING_ORDER_ID_UNIQUE">
+            <column name="order_id"/>
+        </constraint>
+        
+        <!-- Index on quote_id for fast lookups during checkout -->
+        <index referenceId="MONTU_AFFILIATE_TRACKING_QUOTE_ID" indexType="btree">
+            <column name="quote_id"/>
+        </index>
+        
+        <!-- Index on affiliate_code for reporting queries -->
+        <index referenceId="MONTU_AFFILIATE_TRACKING_AFFILIATE_CODE" indexType="btree">
+            <column name="affiliate_code"/>
+        </index>
+        
+    </table>
+
+    <!-- Montu Webhook Log Table - Stores webhook attempts and retry status -->
+    <table name="montu_affiliate_webhook_log" resource="default" engine="innodb"
+           comment="Montu Affiliate Webhook Log">
+        
+        <column xsi:type="int" name="entity_id" unsigned="true" nullable="false"
+                identity="true" comment="Entity ID"/>
+        
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="false"
+                comment="Sales Order ID"/>
+        
+        <column xsi:type="varchar" name="affiliate_code" nullable="false" length="255"
+                comment="Affiliate Referral Code"/>
+        
+        <column xsi:type="varchar" name="status" nullable="false" length="32" default="pending"
+                comment="Status: pending, processing, success, failed, max_retries"/>
+        
+        <column xsi:type="smallint" name="retry_count" unsigned="true" nullable="false" default="0"
+                comment="Number of retry attempts"/>
+        
+        <column xsi:type="smallint" name="max_retries" unsigned="true" nullable="false" default="5"
+                comment="Maximum retry attempts"/>
+        
+        <column xsi:type="int" name="http_status_code" unsigned="true" nullable="true"
+                comment="Last HTTP response status code"/>
+        
+        <column xsi:type="text" name="response_body" nullable="true"
+                comment="Last response body"/>
+        
+        <column xsi:type="text" name="error_message" nullable="true"
+                comment="Last error message"/>
+        
+        <column xsi:type="timestamp" name="next_retry_at" on_update="false" nullable="true"
+                comment="Next retry scheduled time"/>
+        
+        <column xsi:type="timestamp" name="last_attempt_at" on_update="false" nullable="true"
+                comment="Last attempt timestamp"/>
+        
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false"
+                default="CURRENT_TIMESTAMP" comment="Created At"/>
+        
+        <column xsi:type="timestamp" name="updated_at" on_update="true" nullable="false"
+                default="CURRENT_TIMESTAMP" comment="Updated At"/>
+        
+        <!-- Primary Key -->
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        
+        <!-- Unique constraint on order_id (one webhook log per order) -->
+        <constraint xsi:type="unique" referenceId="MONTU_AFFILIATE_WEBHOOK_LOG_ORDER_ID_UNIQUE">
+            <column name="order_id"/>
+        </constraint>
+        
+        <!-- Index on status for queue processing -->
+        <index referenceId="MONTU_AFFILIATE_WEBHOOK_LOG_STATUS" indexType="btree">
+            <column name="status"/>
+        </index>
+        
+        <!-- Index on next_retry_at for retry scheduling -->
+        <index referenceId="MONTU_AFFILIATE_WEBHOOK_LOG_NEXT_RETRY" indexType="btree">
+            <column name="next_retry_at"/>
+        </index>
+        
+    </table>
+    
+</schema>

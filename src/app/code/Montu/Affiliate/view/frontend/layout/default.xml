@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Frontend Layout
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="before.body.end">
+            <block class="Magento\Framework\View\Element\Template"
+                   name="montu.affiliate.tracking"
+                   template="Montu_Affiliate::tracking.phtml"
+                   ifconfig="montu_affiliate/general/enabled">
+                <arguments>
+                    <argument name="view_model" xsi:type="object">Montu\Affiliate\ViewModel\AffiliateConfig</argument>
+                </arguments>
+            </block>
+        </referenceContainer>
+    </body>
+</page>
+

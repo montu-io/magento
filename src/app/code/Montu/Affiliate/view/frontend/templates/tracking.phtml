@@ -1,0 +1,28 @@
+<?php
+/**
+ * Montu Affiliate Tracking Extension - Tracking Template
+ *
+ * Loads the affiliate tracking JS with configuration.
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ * @var \Magento\Framework\View\Element\Template $block
+ * @var \Montu\Affiliate\ViewModel\AffiliateConfig $viewModel
+ */
+
+$viewModel = $block->getViewModel();
+
+if (!$viewModel->isEnabled()) {
+    return;
+}
+
+// Get the static file URL
+$jsUrl = $block->getViewFileUrl('Montu_Affiliate::js/tracking.js');
+?>
+<!-- Montu Affiliate Tracking Configuration -->
+<script>
+    window.montuAffiliateConfig = <?= /* @noEscape */ $viewModel->getJsonConfig() ?>;
+</script>
+
+<!-- Montu Affiliate Tracking Script -->
+<script src="<?= $block->escapeUrl($jsUrl) ?>"></script>

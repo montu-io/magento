@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Dependency Injection Configuration
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <!-- Repository Interface Preference -->
+    <preference for="Montu\Affiliate\Api\AffiliateTrackingRepositoryInterface"
+                type="Montu\Affiliate\Model\AffiliateTrackingRepository"/>
+
+    <!-- Virtual type for custom logger -->
+    <virtualType name="Montu\Affiliate\Logger\Handler" type="Magento\Framework\Logger\Monolog">
+        <arguments>
+            <argument name="name" xsi:type="string">montu_affiliate</argument>
+            <argument name="handlers" xsi:type="array">
+                <item name="system" xsi:type="object">Montu\Affiliate\Logger\Handler\System</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Montu\Affiliate\Logger\Handler\System" type="Magento\Framework\Logger\Handler\Base">
+        <arguments>
+            <argument name="fileName" xsi:type="string">/var/log/montu_affiliate.log</argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Inject custom logger into classes -->
+    <type name="Montu\Affiliate\Model\Config">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Service\WebhookService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Model\AffiliateTrackingRepository">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Model\WebhookLogRepository">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Observer\SaveAffiliateToQuote">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Observer\CopyAffiliateToOrder">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Observer\SendOrderWebhook">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Cron\ProcessWebhooks">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+</config>

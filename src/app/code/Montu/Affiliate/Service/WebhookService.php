@@ -80,9 +80,10 @@ class WebhookService
         }
 
         $payload = $this->buildOrderPayload($order, $affiliateCode);
-        $headers = $this->buildHeaders();
+        $jsonPayload = $this->json->serialize($payload);
+        $headers = $this->buildHeaders($jsonPayload);
 
-        return $this->sendWebhook($endpointUrl, $payload, $headers);
+        return $this->sendWebhook($endpointUrl, $jsonPayload, $headers);
     }
 
     /**
@@ -192,16 +193,19 @@ class WebhookService
     /**
      * Build headers for webhook request
      *
+     * @param string $jsonPayload Serialized JSON body to sign
      * @return array
      */
-    private function buildHeaders(): array
+    private function buildHeaders(string $jsonPayload): array
     {
+        $timestamp = (string) time();
+
         $headers = [
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
             'X-Montu-Webhook-Version' => self::WEBHOOK_VERSION,
             'X-Montu-Event' => self::EVENT_ORDER_PLACED,
-            'X-Montu-Timestamp' => (string) time(),
+            'X-Montu-Timestamp' => $timestamp,
         ];
 
         // Add API Key for authentication
@@ -219,33 +223,33 @@ class WebhookService
             $this->logger->warning('[Montu Affiliate] Could not get store information for headers');
         }
 
-        // Add signature for verification
-        $headers['X-Montu-Signature'] = $this->generateSignature($apiKey);
+        // Sign the full request body for payload integrity verification
+        $headers['X-Montu-Signature'] = $this->generateSignature($apiKey, $jsonPayload);
 
         return $headers;
     }
 
     /**
-     * Generate signature for webhook verification
+     * Generate HMAC-SHA256 signature over the request body
      *
      * @param string $apiKey
+     * @param string $payload The raw JSON body
      * @return string
      */
-    private function generateSignature(string $apiKey): string
+    private function generateSignature(string $apiKey, string $payload): string
     {
-        $timestamp = (string) time();
-        return hash_hmac('sha256', $timestamp, $apiKey);
+        return hash_hmac('sha256', $payload, $apiKey);
     }
 
     /**
      * Send webhook request with detailed response
      *
      * @param string $url
-     * @param array $payload
+     * @param string $jsonPayload Pre-serialized JSON body
      * @param array $headers
      * @return array{success: bool, status_code: int|null, response_body: string|null, error_message: string}
      */
-    private function sendWebhook(string $url, array $payload, array $headers): array
+    private function sendWebhook(string $url, string $jsonPayload, array $headers): array
     {
         $result = [
             'success' => false,
@@ -259,7 +263,7 @@ class WebhookService
 
             // Create new Curl instance for each request to avoid state issues
             $curl = new Curl();
-            
+
             // Configure curl
             $curl->setTimeout($timeout);
             $curl->setOption(CURLOPT_CONNECTTIMEOUT, 10);
@@ -272,7 +276,6 @@ class WebhookService
             }
 
             // Send POST request
-            $jsonPayload = $this->json->serialize($payload);
             $curl->post($url, $jsonPayload);
 
             $result['status_code'] = $curl->getStatus();
@@ -284,8 +287,6 @@ class WebhookService
                 [
                     'url' => $url,
                     'status_code' => $result['status_code'],
-                    'order_increment_id' => $payload['order']['increment_id'] ?? 'unknown',
-                    'affiliate_code' => $payload['affiliate']['code'] ?? 'unknown',
                 ]
             );
 

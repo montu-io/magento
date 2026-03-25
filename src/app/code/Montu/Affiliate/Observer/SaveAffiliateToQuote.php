@@ -82,9 +82,21 @@ class SaveAffiliateToQuote implements ObserverInterface
 
             // Get affiliate code from cookie
             $cookieName = $this->config->getCookieName();
-            $affiliateCode = $this->cookieManager->getCookie($cookieName);
+            $rawAffiliateCode = $this->cookieManager->getCookie($cookieName);
 
-            if ($affiliateCode) {
+            if ($rawAffiliateCode) {
+                // Decode URL encoding set by frontend JS (encodeURIComponent)
+                $affiliateCode = urldecode($rawAffiliateCode);
+
+                // Validate format: alphanumeric, hyphens, underscores, max 100 chars
+                if (!preg_match('/^[a-zA-Z0-9_\-]{1,100}$/', $affiliateCode)) {
+                    $this->logger->warning(
+                        '[Montu Affiliate] Invalid affiliate code format, skipping',
+                        ['raw_value' => substr($rawAffiliateCode, 0, 120)]
+                    );
+                    return;
+                }
+
                 try {
                     $this->trackingRepository->saveByQuoteId($quoteId, $affiliateCode);
                     $this->logger->debug(

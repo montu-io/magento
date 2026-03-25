@@ -106,14 +106,16 @@ class WebhookLogRepository
     public function getPendingWebhooks(int $limit = 50): array
     {
         $collection = $this->collectionFactory->create();
+        $connection = $collection->getConnection();
         $now = date('Y-m-d H:i:s');
 
         // Build condition: pending OR (failed AND ready for retry)
+        $pendingCondition = $connection->quoteInto('status = ?', WebhookLog::STATUS_PENDING);
+        $failedCondition = $connection->quoteInto('status = ?', WebhookLog::STATUS_FAILED)
+            . ' AND ' . $connection->quoteInto('next_retry_at <= ?', $now);
+
         $collection->getSelect()->where(
-            "status = ? OR (status = ? AND next_retry_at <= ?)",
-            WebhookLog::STATUS_PENDING,
-            WebhookLog::STATUS_FAILED,
-            $now
+            "({$pendingCondition}) OR ({$failedCondition})"
         );
 
         $collection->setPageSize($limit)
@@ -136,7 +138,7 @@ class WebhookLogRepository
         $select = $connection->select()
             ->from($tableName, [
                 'status',
-                'count' => new \Zend_Db_Expr('COUNT(*)')
+                'count' => new \Magento\Framework\DB\Sql\Expression('COUNT(*)')
             ])
             ->group('status');
 

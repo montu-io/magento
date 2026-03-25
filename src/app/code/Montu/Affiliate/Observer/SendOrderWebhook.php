@@ -73,17 +73,20 @@ class SendOrderWebhook implements ObserverInterface
 
             $orderId = (int) $order->getId();
             $affiliateCode = $this->trackingRepository->getByOrderId($orderId);
+            $couponCode = $order->getCouponCode();
 
-            if (!$affiliateCode) {
+            // Fire webhook if order has an affiliate code OR a discount/coupon code
+            if (!$affiliateCode && !$couponCode) {
                 $this->logger->debug(
-                    '[Montu Affiliate] Skipping webhook - no affiliate code for order',
+                    '[Montu Affiliate] Skipping webhook - no affiliate or coupon code for order',
                     ['order_id' => $orderId, 'order_increment_id' => $order->getIncrementId()]
                 );
                 return;
             }
 
             // Save to webhook log table - cron will process it
-            $this->webhookLogRepository->create($orderId, $affiliateCode);
+            // affiliate_code may be empty for coupon-only orders
+            $this->webhookLogRepository->create($orderId, $affiliateCode ?? '');
 
             $this->logger->info(
                 '[Montu Affiliate] Webhook scheduled for order',

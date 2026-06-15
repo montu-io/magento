@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Affiliate Storefront Page Layout
+ *
+ * Renders the affiliate storefront through a native ListProduct subclass so the
+ * store's own image/price/swatch/add-to-cart rendering is reused.
+ *
+ * - <update handle="catalog_product_prices"/> brings in the price-render block
+ *   (product.price.render.default) that ListProduct::getProductPrice() needs.
+ * - The details.renderers RendererList + the Swatches "Listing\Configurable"
+ *   renderer give native configurable SWATCHES on the cards (same as a category
+ *   page). Requires Stores > Config > Catalog > Storefront > "Show Swatches in
+ *   Product Listing" = Yes.
+ * - cacheable="false" excludes the per-affiliate, cookie-setting page from FPC.
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      layout="1column"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <update handle="catalog_product_prices"/>
+    <body>
+        <referenceContainer name="content">
+            <block class="Montu\Affiliate\Block\Storefront\ProductList"
+                   name="montu.storefront.list"
+                   template="Montu_Affiliate::storefront/index.phtml"
+                   cacheable="false">
+                <block class="Magento\Framework\View\Element\RendererList"
+                       name="montu.storefront.details.renderers"
+                       as="details.renderers">
+                    <block class="Magento\Swatches\Block\Product\Renderer\Listing\Configurable"
+                           as="configurable"
+                           template="Magento_Swatches::product/listing/renderer.phtml"
+                           cacheable="false"/>
+                </block>
+            </block>
+        </referenceContainer>
+    </body>
+</page>

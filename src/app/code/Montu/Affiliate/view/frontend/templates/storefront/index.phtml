@@ -1,0 +1,192 @@
+<?php
+/**
+ * Montu Affiliate Tracking Extension - Affiliate Storefront Template
+ *
+ * Amazon-style, responsive, paginated affiliate storefront. Products are
+ * rendered with Magento's native helpers (image, price, configurable swatches,
+ * AJAX add-to-cart) via Block\Storefront\ProductList; list filters and the pager
+ * come from ViewModel\Storefront.
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ * @var \Montu\Affiliate\Block\Storefront\ProductList $block
+ */
+
+use Magento\Framework\App\Action\Action;
+
+$viewModel = $block->getViewModel();
+$collection = $block->getLoadedProductCollection();
+
+$affiliateCode = $viewModel->getAffiliateCode();
+$filters = $viewModel->getListFilters();
+$imageId = 'category_page_grid';
+?>
+<div class="montu-storefront">
+    <div class="montu-storefront__header">
+        <h1 class="montu-storefront__title"><?= $block->escapeHtml($viewModel->getTitle()) ?></h1>
+        <?php if ($affiliateCode !== ''): ?>
+            <p class="montu-storefront__subtitle">
+                <?= $block->escapeHtml(__('You are shopping with the recommendations of %1', $affiliateCode)) ?>
+            </p>
+        <?php endif; ?>
+    </div>
+
+    <div class="montu-storefront__body">
+        <aside class="montu-storefront__filters" aria-label="<?= $block->escapeHtmlAttr(__('Lists')) ?>">
+            <span class="montu-storefront__filters-title"><?= $block->escapeHtml(__('Lists')) ?></span>
+            <ul class="montu-storefront__filter-list">
+                <?php foreach ($filters as $filter): ?>
+                    <li class="montu-storefront__filter-item<?= $filter['active'] ? ' is-active' : '' ?>">
+                        <a href="<?= $block->escapeUrl($filter['url']) ?>">
+                            <span class="montu-storefront__filter-name"><?= $block->escapeHtml($filter['name']) ?></span>
+                            <span class="montu-storefront__filter-count"><?= (int) $filter['count'] ?></span>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </aside>
+
+        <div class="montu-storefront__main">
+            <div class="montu-storefront__toolbar">
+                <span class="montu-storefront__active-list"><?= $block->escapeHtml($viewModel->getActiveListName()) ?></span>
+                <?php if ($viewModel->getTotalCount() > 0): ?>
+                    <span class="montu-storefront__count">
+                        <?= $block->escapeHtml(__(
+                            'Showing %1-%2 of %3',
+                            $viewModel->getShowingFrom(),
+                            $viewModel->getShowingTo(),
+                            $viewModel->getTotalCount()
+                        )) ?>
+                    </span>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!$collection->getSize()): ?>
+                <div class="message info empty">
+                    <span><?= $block->escapeHtml(__('There are no recommended products to show right now.')) ?></span>
+                </div>
+            <?php else: ?>
+                <ol class="products list items product-items montu-storefront__grid">
+                    <?php foreach ($collection as $product): ?>
+                        <?php $postParams = $block->getAddToCartPostParams($product); ?>
+                        <li class="item product product-item montu-storefront__item"
+                            data-montu-product-id="<?= (int) $product->getId() ?>">
+                            <div class="product-item-info">
+                                <a href="<?= $block->escapeUrl($block->getProductUrl($product)) ?>"
+                                   class="product-item-photo" tabindex="-1">
+                                    <?= $block->getImage($product, $imageId)->toHtml() ?>
+                                </a>
+                                <div class="product-item-details">
+                                    <strong class="product-item-name">
+                                        <a class="product-item-link"
+                                           href="<?= $block->escapeUrl($block->getProductUrl($product)) ?>">
+                                            <?= $block->escapeHtml($product->getName()) ?>
+                                        </a>
+                                    </strong>
+
+                                    <?= $block->getProductPrice($product) ?>
+
+                                    <?= $block->getProductDetailsHtml($product) ?>
+
+                                    <div class="product-item-inner">
+                                        <div class="product-item-actions">
+                                            <div class="actions-primary">
+                                                <form data-role="tocart-form"
+                                                      data-product-sku="<?= $block->escapeHtmlAttr($product->getSku()) ?>"
+                                                      action="<?= $block->escapeUrl($postParams['action']) ?>"
+                                                      method="post">
+                                                    <input type="hidden" name="product" value="<?= (int) $postParams['data']['product'] ?>"/>
+                                                    <input type="hidden"
+                                                           name="<?= /* @noEscape */ Action::PARAM_NAME_URL_ENCODED ?>"
+                                                           value="<?= $block->escapeHtmlAttr($postParams['data'][Action::PARAM_NAME_URL_ENCODED]) ?>"/>
+                                                    <?= $block->getBlockHtml('formkey') ?>
+                                                    <button type="submit"
+                                                            class="action tocart primary"
+                                                            title="<?= $block->escapeHtmlAttr(__('Add to Cart')) ?>">
+                                                        <span><?= $block->escapeHtml(__('Add to Cart')) ?></span>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    <?php endforeach; ?>
+                </ol>
+
+                <?php if ($viewModel->getTotalPages() > 1): ?>
+                    <nav class="montu-storefront__pager" aria-label="<?= $block->escapeHtmlAttr(__('Pagination')) ?>">
+                        <?php if ($viewModel->hasPrev()): ?>
+                            <a class="montu-storefront__page montu-storefront__page--prev"
+                               href="<?= $block->escapeUrl($viewModel->getPrevUrl()) ?>"
+                               rel="prev"><?= $block->escapeHtml(__('Previous')) ?></a>
+                        <?php endif; ?>
+                        <?php foreach ($viewModel->getPageWindow() as $page): ?>
+                            <?php if ($page['current']): ?>
+                                <span class="montu-storefront__page is-current" aria-current="page"><?= (int) $page['num'] ?></span>
+                            <?php else: ?>
+                                <a class="montu-storefront__page" href="<?= $block->escapeUrl($page['url']) ?>"><?= (int) $page['num'] ?></a>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                        <?php if ($viewModel->hasNext()): ?>
+                            <a class="montu-storefront__page montu-storefront__page--next"
+                               href="<?= $block->escapeUrl($viewModel->getNextUrl()) ?>"
+                               rel="next"><?= $block->escapeHtml(__('Next')) ?></a>
+                        <?php endif; ?>
+                    </nav>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="montu-storefront__cta">
+        <a class="action primary" href="<?= $block->escapeUrl($viewModel->getStoreUrl()) ?>">
+            <span><?= $block->escapeHtml(__('Continue shopping')) ?></span>
+        </a>
+    </div>
+</div>
+
+<?php // Native AJAX add-to-cart (CSP-safe, declarative). ?>
+<script type="text/x-magento-init">
+    {"[data-role=tocart-form]": {"Magento_Catalog/js/catalog-add-to-cart": {}}}
+</script>
+
+<?php // Montu-recommended default swatch selection, applied after swatch init. ?>
+<script type="application/json" id="montu-storefront-selections"><?= /* @noEscape */ $block->getRecommendedSelectionsJson() ?></script>
+<script src="<?= $block->escapeUrl($block->getPreselectScriptUrl()) ?>"></script>
+
+<style>
+    .montu-storefront { max-width: 1440px; margin: 0 auto; padding: 20px; }
+    .montu-storefront__header { margin-bottom: 24px; }
+    .montu-storefront__title { margin: 0 0 6px; }
+    .montu-storefront__subtitle { color: #555; font-size: 1.4rem; margin: 0; }
+    .montu-storefront__body { display: grid; grid-template-columns: 240px 1fr; gap: 28px; align-items: start; }
+    .montu-storefront__filters-title { display: block; font-weight: 700; margin-bottom: 10px; }
+    .montu-storefront__filter-list { list-style: none; margin: 0; padding: 0; }
+    .montu-storefront__filter-item a { display: flex; justify-content: space-between; gap: 8px;
+        padding: 8px 10px; border-radius: 6px; color: inherit; text-decoration: none; }
+    .montu-storefront__filter-item.is-active a { background: #f0eaff; font-weight: 700; }
+    .montu-storefront__filter-count { color: #888; }
+    .montu-storefront__toolbar { display: flex; justify-content: space-between; align-items: baseline;
+        gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .montu-storefront__active-list { font-size: 1.8rem; font-weight: 700; }
+    .montu-storefront__count { color: #777; }
+    .montu-storefront__grid { display: grid; gap: 20px; list-style: none; margin: 0; padding: 0;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .montu-storefront__item .product-item-info { width: 100%; }
+    .montu-storefront__pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+        justify-content: center; margin-top: 32px; }
+    .montu-storefront__page { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;
+        text-decoration: none; color: inherit; }
+    .montu-storefront__page.is-current { background: #5023cc; color: #fff; border-color: #5023cc; }
+    .montu-storefront__cta { text-align: center; margin-top: 36px; }
+
+    @media (max-width: 768px) {
+        .montu-storefront__body { grid-template-columns: 1fr; }
+        .montu-storefront__filters { position: sticky; top: 0; z-index: 1; background: #fff; padding: 8px 0; }
+        .montu-storefront__filter-list { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .montu-storefront__filter-item a { white-space: nowrap; border: 1px solid #e3e3e3; }
+        .montu-storefront__grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+    }
+</style>

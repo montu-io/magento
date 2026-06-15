@@ -24,6 +24,13 @@
                 <send_on_order_placed>1</send_on_order_placed>
                 <timeout>30</timeout>
             </webhook>
+            <storefront>
+                <enabled>0</enabled>
+                <route_path>storefront</route_path>
+                <title>Recommended products</title>
+                <products_endpoint></products_endpoint>
+                <products_limit>12</products_limit>
+            </storefront>
         </montu_affiliate>
     </default>
 </config>

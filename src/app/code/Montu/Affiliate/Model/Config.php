@@ -26,6 +26,11 @@ class Config
     private const XML_PATH_WEBHOOK_API_KEY = 'montu_affiliate/webhook/api_key';
     private const XML_PATH_WEBHOOK_SEND_ON_ORDER_PLACED = 'montu_affiliate/webhook/send_on_order_placed';
     private const XML_PATH_WEBHOOK_TIMEOUT = 'montu_affiliate/webhook/timeout';
+    private const XML_PATH_STOREFRONT_ENABLED = 'montu_affiliate/storefront/enabled';
+    private const XML_PATH_STOREFRONT_ROUTE_PATH = 'montu_affiliate/storefront/route_path';
+    private const XML_PATH_STOREFRONT_TITLE = 'montu_affiliate/storefront/title';
+    private const XML_PATH_STOREFRONT_PRODUCTS_ENDPOINT = 'montu_affiliate/storefront/products_endpoint';
+    private const XML_PATH_STOREFRONT_PRODUCTS_LIMIT = 'montu_affiliate/storefront/products_limit';
 
     /**
      * @var ScopeConfigInterface
@@ -196,6 +201,85 @@ class Config
         );
 
         return (int) ($timeout ?: 30);
+    }
+
+    /**
+     * Check if the affiliate storefront route is enabled
+     *
+     * @param int|null $storeId
+     * @return bool
+     */
+    public function isStorefrontEnabled(?int $storeId = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_STOREFRONT_ENABLED,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Get the storefront URL prefix (default: "storefront" -> /storefront/{code})
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getStorefrontRoutePath(?int $storeId = null): string
+    {
+        $path = (string) $this->scopeConfig->getValue(
+            self::XML_PATH_STOREFRONT_ROUTE_PATH,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+
+        return trim($path, '/') ?: 'storefront';
+    }
+
+    /**
+     * Get the storefront page heading/title
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getStorefrontTitle(?int $storeId = null): string
+    {
+        return (string) $this->scopeConfig->getValue(
+            self::XML_PATH_STOREFRONT_TITLE,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ) ?: 'Recommended products';
+    }
+
+    /**
+     * Get the Montu recommendations endpoint URL (empty until the API exists)
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getStorefrontProductsEndpoint(?int $storeId = null): string
+    {
+        return (string) $this->scopeConfig->getValue(
+            self::XML_PATH_STOREFRONT_PRODUCTS_ENDPOINT,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Get the maximum number of recommended products to render
+     *
+     * @param int|null $storeId
+     * @return int
+     */
+    public function getStorefrontProductsLimit(?int $storeId = null): int
+    {
+        $limit = $this->scopeConfig->getValue(
+            self::XML_PATH_STOREFRONT_PRODUCTS_LIMIT,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+
+        return (int) ($limit ?: 12);
     }
 
     /**

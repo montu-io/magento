@@ -91,6 +91,44 @@
                     </depends>
                 </field>
             </group>
+            <group id="storefront" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Affiliate Storefront</label>
+                <field id="enabled" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Enable Storefront Page</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Enable the affiliate storefront route that renders an affiliate's recommended products.</comment>
+                </field>
+                <field id="route_path" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Route Path Prefix</label>
+                    <comment>URL prefix for the storefront. Default "storefront" gives yourstore.com/storefront/ABC123. Flush cache after changing.</comment>
+                    <validate>required-entry</validate>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="title" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Page Heading</label>
+                    <comment>Heading shown at the top of the affiliate storefront page.</comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="products_endpoint" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Recommendations Endpoint URL</label>
+                    <comment>Montu endpoint that returns an affiliate's recommended products. Leave blank while the API is not ready (stub data is used).</comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="products_limit" translate="label comment" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Max Products</label>
+                    <comment>Maximum number of recommended products to display (default: 12).</comment>
+                    <validate>required-entry validate-digits validate-greater-than-zero</validate>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+            </group>
         </section>
     </system>
 </config>

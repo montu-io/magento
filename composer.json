@@ -2,12 +2,11 @@
     "name": "montu/module-affiliate",
     "description": "Montu Affiliate Tracking Extension for Magento 2 - Captures affiliate referral codes and sends order webhooks",
     "type": "magento2-module",
-    "version": "1.0.0",
     "license": "proprietary",
     "authors": [
         {
             "name": "Montu",
-            "email": "dev@montu.io"
+            "email": "vicente@montu.io"
         }
     ],
     "minimum-stability": "stable",

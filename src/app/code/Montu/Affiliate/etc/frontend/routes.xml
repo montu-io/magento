@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Frontend Route Registration
+ *
+ * Registers the internal route used by the affiliate storefront controller.
+ * The public, pretty URL (/storefront/{code}) is matched by Controller/Router.php,
+ * which forwards to this route's storefront/index action.
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:App/etc/routes.xsd">
+    <router id="standard">
+        <route id="montu_affiliate" frontName="montu_affiliate">
+            <module name="Montu_Affiliate"/>
+        </route>
+    </router>
+</config>

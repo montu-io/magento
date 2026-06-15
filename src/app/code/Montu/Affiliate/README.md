@@ -42,6 +42,48 @@ bin/magento cache:clean
 | Webhook URL | URL de tu endpoint | - |
 | API Key | Tu API key | - |
 
+### Storefront del afiliado (sección **Affiliate Storefront**)
+
+| Campo | Descripción | Default |
+|-------|-------------|---------|
+| Enable Storefront Page | Activa la ruta `/storefront/{code}` | No |
+| Route Path Prefix | Prefijo de la URL pública | `storefront` |
+| Page Heading | Título de la página | `Recommended products` |
+| Recommendations Endpoint URL | Endpoint Montu de productos recomendados (dejar vacío mientras la API no exista → datos de ejemplo) | - |
+| Max Products | Máximo de productos a mostrar | 12 |
+
+## 🛍️ Tienda del Afiliado (`/storefront/{code}`)
+
+Un visitante puede entrar a la tienda con un código de afiliado de **dos formas**,
+y en ambas se guarda la cookie con el código:
+
+1. **Query param** — `https://tienda.com/?aff=ABC123` (capturado por JS).
+2. **Ruta storefront** — `https://tienda.com/storefront/ABC123`, que además
+   **renderiza una página con los productos que ese afiliado recomienda**.
+
+La ruta la resuelve un **router personalizado** (`Controller/Router.php`) que
+toma el código del path y reenvía a `Controller/Storefront/Index.php`. El
+controlador valida el código (`^[a-zA-Z0-9_\-]{1,100}$`), **escribe la cookie en
+el servidor** (mismo nombre/duración que la captura por JS) y renderiza la
+página. La página se declara **`cacheable="false"`**, por lo que el Full Page
+Cache / Fastly nunca la sirve cacheada (es por-afiliado y escribe cookie).
+
+Los productos se obtienen vía `Service/RecommendationClient.php`. **El endpoint
+de Montu aún no existe**, así que por ahora el cliente devuelve **datos de
+ejemplo** (`USE_STUB_DATA = true`). Cuando la API esté lista: configurar
+*Recommendations Endpoint URL* en el admin y poner `USE_STUB_DATA = false`; el
+cliente llamará al endpoint (firmado con la misma API key) y caerá de vuelta a
+los datos de ejemplo ante cualquier error. La forma esperada del JSON está
+documentada en `RecommendationClient::parseResponse()`.
+
+```
+GET /storefront/ABC123
+  → Router toma "ABC123" del path → forward a storefront/index
+  → valida código + setea cookie _montu_aff_ref_code=ABC123 (servidor)
+  → RecommendationClient->getRecommendedProducts("ABC123")  (stub por ahora)
+  → renderiza grilla de productos (no cacheable)
+```
+
 ## 🔄 Cómo Funciona
 
 ```

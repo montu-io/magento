@@ -6,23 +6,20 @@ the conventions to follow.
 
 ## What This Project Is
 
-`magento/` is a **local Magento 2 development environment** based on
-[Mark Shust's `docker-magento`](https://github.com/markshust/docker-magento)
-(v52.1.0). It exists for **one reason**: to develop, test, and ship Montu's
-custom Magento extension(s) that integrate a merchant's Magento store with the
-Montu platform.
+`magento/` **is the Composer package** for Montu's custom Magento 2 extension,
+**`Montu_Affiliate`** — it integrates a merchant's Magento store with the Montu
+platform. The directory root **is the module root**: `composer.json`,
+`registration.php`, `etc/`, `Model/`, etc. live directly here.
 
-Almost everything under `magento/` is the standard docker-magento tooling and a
-**vanilla Magento install** (downloaded into `src/`, not committed). The only
-code we own and maintain lives in:
+There is **no Magento install and no Docker environment** in this folder — only
+the module source, installed into a host Magento project via Composer (package
+name `montu/module-affiliate`, type `magento2-module`). See `README.md` for the
+Composer install instructions (`path` repository for monorepo/dev, or a subtree
+split to a dedicated repo for remote `vcs` install).
 
-```
-magento/src/app/code/Montu/Affiliate/
-```
-
-> When working here, the "project" is effectively the `Montu_Affiliate` module.
-> The surrounding Magento app + Docker scaffolding is infrastructure you run, not
-> code you change.
+> When working here, the "project" **is** the `Montu_Affiliate` module. There is
+> no surrounding Magento app to run — develop the module, install it into a real
+> Magento 2 store via Composer to test.
 
 ### Relationship to the rest of the monorepo
 
@@ -76,7 +73,8 @@ back a cart or checkout).
 ### Module layout
 
 ```
-src/app/code/Montu/Affiliate/
+magento/                         # package root (montu/module-affiliate)
+├── composer.json                # type: magento2-module, autoload PSR-4 Montu\Affiliate\ → ""
 ├── registration.php
 ├── etc/
 │   ├── module.xml            # sequence: Magento_Sales, _Checkout, _Store
@@ -129,51 +127,48 @@ and decrypted on read. Config XML paths follow `montu_affiliate/<group>/<field>`
 8. **Heavy/external work is async** — never call out to Montu inline during
    checkout. Queue a row and let `Cron/ProcessWebhooks` deliver it.
 
-## Running the Environment
+## Running / Installing
 
-This is docker-magento — use the wrapper scripts in `bin/` (or the `make`
-targets; `make help` lists them). Common ones:
+There is **no Docker environment here anymore** — this is just the module
+package. To run it, install it into a real Magento 2 store via Composer. Full
+instructions are in `README.md`; the short version:
 
-```bash
-bin/start                 # start the Docker stack
-bin/stop                  # stop it
-bin/bash                  # shell into the phpfpm container
-bin/magento <args>        # run the Magento CLI inside the container
-bin/cli <cmd>             # run any command in the container
-bin/log                   # tail Magento logs
-bin/n98-magerun2 <args>   # n98-magerun2 CLI
+```jsonc
+// in the host Magento project's composer.json
+"repositories": [
+  { "type": "path", "url": "../monorepo/magento", "options": { "symlink": true } }
+]
 ```
 
-Stack (see `compose.yaml`): nginx, **PHP 8.3-fpm**, **MariaDB 11.4**, Redis,
-RabbitMQ, OpenSearch/Elasticsearch, Varnish — the standard docker-magento set.
-SSL/domain via `bin/setup-domain` + `bin/setup-ssl`.
-
-### Installing / updating the module after changes
-
 ```bash
+composer require montu/module-affiliate:@dev   # @dev for path; ^1.0 (git tag) for vcs
 bin/magento module:enable Montu_Affiliate
-bin/magento setup:upgrade
-bin/magento setup:di:compile      # needed after DI/constructor changes
+bin/magento setup:upgrade          # creates the 2 tables
+bin/magento setup:di:compile       # needed after DI/constructor changes
 bin/magento cache:clean
 ```
 
-### Inspecting webhook delivery
+(Those `bin/magento` commands run in the **host Magento project**, not here.)
+
+### Inspecting webhook delivery (in the host store)
 
 ```bash
 bin/magento cron:run
-bin/log                            # or tail var/log/montu_affiliate.log
+tail -f var/log/montu_affiliate.log
 # SELECT status, COUNT(*) FROM montu_affiliate_webhook_log GROUP BY status;
 ```
 
 ## Requirements
 
-- Magento 2.4.x, PHP 8.1+ (the dev container runs PHP 8.3)
-- Magento cron running (`* * * * * php bin/magento cron:run`)
+- Magento 2.4.x, PHP 8.1+ (see `composer.json` for required Magento modules)
+- Magento cron running in the host store (`* * * * * php bin/magento cron:run`)
 
 ## Notes / Gotchas
 
-- **`src/` is the Magento install** and is largely gitignored — only
-  `app/code/Montu/**` is ours. Don't commit downloaded core or vendor code.
+- **This folder is the package, not a Magento install.** Everything here is
+  module source we own and commit. `composer.json` intentionally has **no
+  `version`** — Composer derives it from git tags, so tag releases on the repo
+  used for `vcs` installs.
 - The cron schedule is **every 5 minutes** (`*/5 * * * *` in `crontab.xml`),
   despite some older docstrings/README text saying "every minute."
 - The webhook fires on **coupon-only orders too** (not just affiliate-coded

@@ -79,4 +79,34 @@
         </arguments>
     </type>
 
+    <type name="Montu\Affiliate\Controller\Router">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Controller\Storefront\Index">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Service\RecommendationClient">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Service\StubRecommendationProvider">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Model\Storefront\CollectionBuilder">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
 </config>

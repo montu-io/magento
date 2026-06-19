@@ -23,13 +23,41 @@ class AffiliateRecommendations
     private array $lists;
 
     /**
+     * Full ordered set of recommended variant ids (including products in no
+     * list). Null means "derive from the lists" (used by the stub provider).
+     *
+     * @var int[]|null
+     */
+    private ?array $allVariantIds;
+
+    private ?AffiliateInfo $affiliate;
+
+    /**
      * @param string $code
      * @param RecommendationList[] $lists
+     * @param int[]|null $allVariantIds
+     * @param AffiliateInfo|null $affiliate
      */
-    public function __construct(string $code, array $lists)
-    {
+    public function __construct(
+        string $code,
+        array $lists,
+        ?array $allVariantIds = null,
+        ?AffiliateInfo $affiliate = null
+    ) {
         $this->code = $code;
         $this->lists = $lists;
+        $this->allVariantIds = $allVariantIds;
+        $this->affiliate = $affiliate;
+    }
+
+    /**
+     * The affiliate's public identity (name + picture), or null if unknown.
+     *
+     * @return AffiliateInfo|null
+     */
+    public function getAffiliate(): ?AffiliateInfo
+    {
+        return $this->affiliate;
     }
 
     /**
@@ -65,12 +93,19 @@ class AffiliateRecommendations
     }
 
     /**
-     * All variant ids across every list, de-duplicated, order preserved.
+     * All recommended variant ids, de-duplicated, order preserved.
+     *
+     * When the response provided an explicit product set (the live endpoint),
+     * that is used verbatim so products in no list still appear under "All".
+     * Otherwise it falls back to the union of the lists (the stub provider).
      *
      * @return int[]
      */
     public function getAllVariantIds(): array
     {
+        if ($this->allVariantIds !== null) {
+            return $this->allVariantIds;
+        }
         $ids = [];
         foreach ($this->lists as $list) {
             foreach ($list->getVariantIds() as $id) {

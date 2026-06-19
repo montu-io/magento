@@ -15,10 +15,13 @@
     <type name="Magento\Framework\App\RouterList">
         <arguments>
             <argument name="routerList" xsi:type="array">
+                <!-- sortOrder 19: run before the UrlRewrite router (20) so a
+                     storefront URL is matched without first doing url_rewrite
+                     table lookups that would always miss for this path. -->
                 <item name="montu_affiliate_storefront" xsi:type="array">
                     <item name="class" xsi:type="string">Montu\Affiliate\Controller\Router</item>
                     <item name="disable" xsi:type="boolean">false</item>
-                    <item name="sortOrder" xsi:type="string">35</item>
+                    <item name="sortOrder" xsi:type="string">19</item>
                 </item>
             </argument>
         </arguments>

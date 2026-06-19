@@ -19,9 +19,9 @@ namespace Montu\Affiliate\Controller;
 
 use Magento\Framework\App\ActionFactory;
 use Magento\Framework\App\ActionInterface;
-use Magento\Framework\App\Action\Forward;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\RouterInterface;
+use Montu\Affiliate\Controller\Storefront\Index;
 use Montu\Affiliate\Model\Config;
 use Psr\Log\LoggerInterface;
 
@@ -92,12 +92,20 @@ class Router implements RouterInterface
                 return null;
             }
 
-            $request->setModuleName('montu_affiliate')
+            // Set the route identity so the page's layout handle resolves to
+            // `montu_affiliate_storefront_index`, then return the controller
+            // action DIRECTLY. Returning a Forward would re-dispatch (a second
+            // routing pass that re-hits the UrlRewrite router); a direct action
+            // keeps routing to a single pass. This router is ordered before the
+            // UrlRewrite router (see etc/frontend/di.xml) so no url_rewrite
+            // lookups run for storefront URLs.
+            $request->setRouteName('montu_affiliate')
+                ->setModuleName('montu_affiliate')
                 ->setControllerName('storefront')
                 ->setActionName('index')
                 ->setParam('code', $code);
 
-            return $this->actionFactory->create(Forward::class);
+            return $this->actionFactory->create(Index::class);
         } catch (\Exception $e) {
             $this->logger->error(
                 '[Montu Affiliate] Storefront router error (suppressed): ' . $e->getMessage()

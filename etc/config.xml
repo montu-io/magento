@@ -30,6 +30,7 @@
                 <title>Recommended products</title>
                 <products_endpoint></products_endpoint>
                 <products_limit>12</products_limit>
+                <locale>en_US</locale>
             </storefront>
         </montu_affiliate>
     </default>

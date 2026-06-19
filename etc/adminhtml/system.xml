@@ -115,7 +115,15 @@
                 </field>
                 <field id="products_endpoint" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Recommendations Endpoint URL</label>
-                    <comment>Montu endpoint that returns an affiliate's recommended products. Leave blank while the API is not ready (stub data is used).</comment>
+                    <comment>Montu endpoint that returns an affiliate's recommended products. Must end with your store id, e.g. https://api.montu.io/montu/api/v1/ecommerce/magento/recommendations/123 (the affiliate code is appended automatically). Leave blank while the API is not ready (stub data is used).</comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="locale" translate="label comment" type="select" sortOrder="45" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Storefront Language</label>
+                    <source_model>Montu\Affiliate\Model\Config\Source\StorefrontLocale</source_model>
+                    <comment>Language used to translate the affiliate storefront page (English or Spanish).</comment>
                     <depends>
                         <field id="enabled">1</field>
                     </depends>

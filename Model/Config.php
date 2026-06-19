@@ -31,6 +31,7 @@ class Config
     private const XML_PATH_STOREFRONT_TITLE = 'montu_affiliate/storefront/title';
     private const XML_PATH_STOREFRONT_PRODUCTS_ENDPOINT = 'montu_affiliate/storefront/products_endpoint';
     private const XML_PATH_STOREFRONT_PRODUCTS_LIMIT = 'montu_affiliate/storefront/products_limit';
+    private const XML_PATH_STOREFRONT_LOCALE = 'montu_affiliate/storefront/locale';
 
     /**
      * @var ScopeConfigInterface
@@ -280,6 +281,23 @@ class Config
         );
 
         return (int) ($limit ?: 12);
+    }
+
+    /**
+     * Get the configured storefront locale (e.g. "es_ES", "en_US").
+     *
+     * Empty string means "use the store's default locale".
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getStorefrontLocale(?int $storeId = null): string
+    {
+        return (string) $this->scopeConfig->getValue(
+            self::XML_PATH_STOREFRONT_LOCALE,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
     }
 
     /**

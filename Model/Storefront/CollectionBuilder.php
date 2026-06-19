@@ -27,7 +27,7 @@ use Magento\Catalog\Model\Config as CatalogConfig;
 use Magento\Catalog\Model\Product\Attribute\Source\Status as ProductStatus;
 use Magento\Catalog\Model\ResourceModel\Product\Collection;
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
-use Magento\CatalogInventory\Helper\Stock as StockHelper;
+use Magento\CatalogInventory\Model\ResourceModel\Stock\Status as StockStatusResource;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Sql\Expression;
 use Magento\Store\Model\StoreManagerInterface;
@@ -37,7 +37,7 @@ class CollectionBuilder
 {
     private CollectionFactory $collectionFactory;
     private CatalogConfig $catalogConfig;
-    private StockHelper $stockHelper;
+    private StockStatusResource $stockStatusResource;
     private ResourceConnection $resource;
     private StoreManagerInterface $storeManager;
     private LoggerInterface $logger;
@@ -45,7 +45,7 @@ class CollectionBuilder
     /**
      * @param CollectionFactory $collectionFactory
      * @param CatalogConfig $catalogConfig
-     * @param StockHelper $stockHelper
+     * @param StockStatusResource $stockStatusResource
      * @param ResourceConnection $resource
      * @param StoreManagerInterface $storeManager
      * @param LoggerInterface $logger
@@ -53,14 +53,14 @@ class CollectionBuilder
     public function __construct(
         CollectionFactory $collectionFactory,
         CatalogConfig $catalogConfig,
-        StockHelper $stockHelper,
+        StockStatusResource $stockStatusResource,
         ResourceConnection $resource,
         StoreManagerInterface $storeManager,
         LoggerInterface $logger
     ) {
         $this->collectionFactory = $collectionFactory;
         $this->catalogConfig = $catalogConfig;
-        $this->stockHelper = $stockHelper;
+        $this->stockStatusResource = $stockStatusResource;
         $this->resource = $resource;
         $this->storeManager = $storeManager;
         $this->logger = $logger;
@@ -161,7 +161,12 @@ class CollectionBuilder
             ->addUrlRewrite();
 
         // Batched stock status (so isSalable() / availability needs no per-row call).
-        $this->stockHelper->addStockStatusToCollection($collection);
+        // false = enrich the collection with stock data without filtering out-of-stock items.
+        // Flag the collection so the catalog's own stock-status plugin does not add a
+        // second join under the same `stock_status_index` alias (which would error),
+        // and so recommended-but-out-of-stock products are still shown rather than filtered.
+        $collection->setFlag('has_stock_status_filter', true);
+        $this->stockStatusResource->addStockDataToCollection($collection, false);
 
         // Preserve the Montu/affiliate ordering.
         $idList = implode(',', array_map('intval', $productIds));

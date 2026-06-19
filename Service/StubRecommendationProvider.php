@@ -19,9 +19,9 @@ declare(strict_types=1);
 
 namespace Montu\Affiliate\Service;
 
-use Magento\Catalog\Model\Product\Type as ProductType;
 use Magento\Catalog\Model\Product\Visibility;
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
+use Magento\ConfigurableProduct\Model\Product\Type\Configurable as ConfigurableType;
 use Magento\ConfigurableProduct\Model\ResourceModel\Product\Type\Configurable as ConfigurableResource;
 use Montu\Affiliate\Model\Data\AffiliateRecommendations;
 use Montu\Affiliate\Model\Data\RecommendationList;
@@ -129,7 +129,7 @@ class StubRecommendationProvider
      */
     private function resolveVariantId($product): int
     {
-        if ($product->getTypeId() === ProductType::TYPE_CONFIGURABLE) {
+        if ($product->getTypeId() === ConfigurableType::TYPE_CODE) {
             $childGroups = $this->configurableResource->getChildrenIds((int) $product->getId());
             foreach ($childGroups as $ids) {
                 foreach ($ids as $childId) {

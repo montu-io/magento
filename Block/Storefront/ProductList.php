@@ -77,6 +77,29 @@ class ProductList extends ListProduct
     }
 
     /**
+     * Load our affiliate collection without the native catalog-layer toolbar path.
+     *
+     * The parent ListProduct::_beforeToHtml() resolves the current category
+     * (`$this->getLayer()->getCurrentCategory()->getId()`) to tag products and,
+     * on any throwable, swaps in an EMPTY fallback collection. The affiliate
+     * storefront is a standalone route with no current category, so that path
+     * throws and would blank the page. We already paginate and order the
+     * collection ourselves in CollectionBuilder, so we just load it here and
+     * skip the category/toolbar logic entirely. Native product rendering
+     * (price, swatches, add-to-cart) does not depend on the toolbar.
+     *
+     * @return $this
+     */
+    protected function _beforeToHtml()
+    {
+        $collection = $this->_getProductCollection();
+        if (!$collection->isLoaded()) {
+            $collection->load();
+        }
+        return $this;
+    }
+
+    /**
      * Provide the eagerly-loaded collection for the current page's variants.
      *
      * Overrides ListProduct so all native rendering (price, swatches, stock,

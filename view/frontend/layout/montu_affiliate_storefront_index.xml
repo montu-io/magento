@@ -31,10 +31,21 @@
                 <block class="Magento\Framework\View\Element\RendererList"
                        name="montu.storefront.details.renderers"
                        as="details.renderers">
+                    <!-- Fallback renderer for product types without a specific one
+                         (e.g. simple products); renders nothing, like the native
+                         category listing's default. -->
+                    <block class="Magento\Framework\View\Element\Template"
+                           name="montu.storefront.details.renderers.default"
+                           as="default"/>
                     <block class="Magento\Swatches\Block\Product\Renderer\Listing\Configurable"
                            as="configurable"
                            template="Magento_Swatches::product/listing/renderer.phtml"
-                           cacheable="false"/>
+                           cacheable="false">
+                        <arguments>
+                            <argument name="configurable_view_model"
+                                      xsi:type="object">Magento\Swatches\ViewModel\Product\Renderer\Configurable</argument>
+                        </arguments>
+                    </block>
                 </block>
             </block>
         </referenceContainer>

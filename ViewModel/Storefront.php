@@ -123,6 +123,28 @@ class Storefront implements ArgumentInterface
     }
 
     /**
+     * The affiliate's full name (first + last), or "" if unknown.
+     *
+     * @return string
+     */
+    public function getAffiliateName(): string
+    {
+        $affiliate = $this->getRecommendations()->getAffiliate();
+        return $affiliate !== null ? $affiliate->getFullName() : '';
+    }
+
+    /**
+     * The affiliate's profile picture URL, or null if none.
+     *
+     * @return string|null
+     */
+    public function getAffiliateProfilePicture(): ?string
+    {
+        $affiliate = $this->getRecommendations()->getAffiliate();
+        return $affiliate !== null ? $affiliate->getProfilePicture() : null;
+    }
+
+    /**
      * Currently active list id ("" = all lists).
      *
      * @return string

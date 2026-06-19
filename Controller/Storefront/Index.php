@@ -23,12 +23,15 @@ declare(strict_types=1);
 namespace Montu\Affiliate\Controller\Storefront;
 
 use Magento\Framework\App\Action\HttpGetActionInterface;
+use Magento\Framework\App\Area;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Controller\Result\Forward;
 use Magento\Framework\Controller\Result\ForwardFactory;
+use Magento\Framework\Locale\ResolverInterface as LocaleResolver;
 use Magento\Framework\Stdlib\Cookie\CookieMetadataFactory;
 use Magento\Framework\Stdlib\Cookie\PublicCookieMetadata;
 use Magento\Framework\Stdlib\CookieManagerInterface;
+use Magento\Framework\TranslateInterface;
 use Magento\Framework\View\Result\Page;
 use Magento\Framework\View\Result\PageFactory;
 use Montu\Affiliate\Model\Config;
@@ -47,6 +50,8 @@ class Index implements HttpGetActionInterface
     private CookieManagerInterface $cookieManager;
     private CookieMetadataFactory $cookieMetadataFactory;
     private Config $config;
+    private LocaleResolver $localeResolver;
+    private TranslateInterface $translate;
     private LoggerInterface $logger;
 
     /**
@@ -56,6 +61,8 @@ class Index implements HttpGetActionInterface
      * @param CookieManagerInterface $cookieManager
      * @param CookieMetadataFactory $cookieMetadataFactory
      * @param Config $config
+     * @param LocaleResolver $localeResolver
+     * @param TranslateInterface $translate
      * @param LoggerInterface $logger
      */
     public function __construct(
@@ -65,6 +72,8 @@ class Index implements HttpGetActionInterface
         CookieManagerInterface $cookieManager,
         CookieMetadataFactory $cookieMetadataFactory,
         Config $config,
+        LocaleResolver $localeResolver,
+        TranslateInterface $translate,
         LoggerInterface $logger
     ) {
         $this->request = $request;
@@ -73,6 +82,8 @@ class Index implements HttpGetActionInterface
         $this->cookieManager = $cookieManager;
         $this->cookieMetadataFactory = $cookieMetadataFactory;
         $this->config = $config;
+        $this->localeResolver = $localeResolver;
+        $this->translate = $translate;
         $this->logger = $logger;
     }
 
@@ -96,6 +107,9 @@ class Index implements HttpGetActionInterface
 
         // Capture the affiliate code into the cookie (server-side).
         $this->setAffiliateCookie($code);
+
+        // Render the page in the configured storefront language.
+        $this->applyStorefrontLocale();
 
         $page = $this->pageFactory->create();
 
@@ -142,6 +156,29 @@ class Index implements HttpGetActionInterface
             $this->logger->warning(
                 '[Montu Affiliate] Could not set affiliate cookie from storefront route: '
                 . $e->getMessage()
+            );
+        }
+    }
+
+    /**
+     * Switch the request's locale + translation data to the configured storefront
+     * language so the page's __() strings render translated. No-op when unset
+     * (falls back to the store's default locale). Never breaks the page.
+     *
+     * @return void
+     */
+    private function applyStorefrontLocale(): void
+    {
+        try {
+            $locale = $this->config->getStorefrontLocale();
+            if ($locale === '') {
+                return;
+            }
+            $this->localeResolver->setLocale($locale);
+            $this->translate->setLocale($locale)->loadData(Area::AREA_FRONTEND, true);
+        } catch (\Exception $e) {
+            $this->logger->warning(
+                '[Montu Affiliate] Could not apply storefront locale: ' . $e->getMessage()
             );
         }
     }

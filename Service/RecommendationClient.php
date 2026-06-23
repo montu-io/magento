@@ -8,12 +8,12 @@
  * Model\Storefront\CollectionBuilder and rendered natively by
  * Block\Storefront\ProductList.
  *
- * STATUS: the Montu recommendations endpoint does not exist yet. Until it does,
- * this client returns demo recommendations built from the real catalog by
- * StubRecommendationProvider, so the storefront works end to end. The live call
- * is scaffolded in fetchFromMontu(): once the endpoint is ready, set
- * montu_affiliate/storefront/products_endpoint in admin and flip USE_STUB_DATA
- * to false. The expected JSON shape is documented on parseResponse().
+ * The live Montu recommendations endpoint is called in fetchFromMontu() (signed
+ * with the same HMAC-SHA256 scheme as the webhook); configure its URL in
+ * montu_affiliate/storefront/products_endpoint. If the endpoint is unset, errors,
+ * or returns nothing, the client degrades gracefully to demo recommendations
+ * built from the real catalog by StubRecommendationProvider, so the storefront
+ * page never fails. The expected JSON shape is documented on parseResponse().
  *
  * @category  Montu
  * @package   Montu_Affiliate

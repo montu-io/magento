@@ -32,6 +32,15 @@ class Config
     private const XML_PATH_STOREFRONT_PRODUCTS_ENDPOINT = 'montu_affiliate/storefront/products_endpoint';
     private const XML_PATH_STOREFRONT_PRODUCTS_LIMIT = 'montu_affiliate/storefront/products_limit';
     private const XML_PATH_STOREFRONT_LOCALE = 'montu_affiliate/storefront/locale';
+    private const XML_PATH_APPEARANCE_THEME_MODE = 'montu_affiliate/appearance/theme_mode';
+    private const XML_PATH_APPEARANCE_ACCENT_COLOR = 'montu_affiliate/appearance/accent_color';
+    private const XML_PATH_APPEARANCE_ACCENT_TEXT_COLOR = 'montu_affiliate/appearance/accent_text_color';
+    private const XML_PATH_APPEARANCE_TEXT_COLOR = 'montu_affiliate/appearance/text_color';
+    private const XML_PATH_APPEARANCE_MUTED_COLOR = 'montu_affiliate/appearance/muted_color';
+    private const XML_PATH_APPEARANCE_BORDER_COLOR = 'montu_affiliate/appearance/border_color';
+    private const XML_PATH_APPEARANCE_SURFACE_COLOR = 'montu_affiliate/appearance/surface_color';
+    private const XML_PATH_APPEARANCE_CARD_RADIUS = 'montu_affiliate/appearance/card_radius';
+    private const XML_PATH_APPEARANCE_FONT_FAMILY = 'montu_affiliate/appearance/font_family';
 
     /**
      * @var ScopeConfigInterface
@@ -326,6 +335,141 @@ class Config
         } catch (\Exception $e) {
             return '';
         }
+    }
+
+    /**
+     * Storefront white-label theme mode: "auto", "manual" or "off".
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getThemeMode(?int $storeId = null): string
+    {
+        return (string) $this->scopeConfig->getValue(
+            self::XML_PATH_APPEARANCE_THEME_MODE,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ) ?: 'auto';
+    }
+
+    /**
+     * Configured accent (primary action) colour, or "" to inherit/sample.
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getAccentColor(?int $storeId = null): string
+    {
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_APPEARANCE_ACCENT_COLOR,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    /**
+     * Configured readable text colour on the accent, or "".
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getAccentTextColor(?int $storeId = null): string
+    {
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_APPEARANCE_ACCENT_TEXT_COLOR,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    /**
+     * Configured primary body text colour, or "".
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getTextColor(?int $storeId = null): string
+    {
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_APPEARANCE_TEXT_COLOR,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    /**
+     * Configured muted/secondary text colour, or "".
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getMutedColor(?int $storeId = null): string
+    {
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_APPEARANCE_MUTED_COLOR,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    /**
+     * Configured border/divider colour, or "".
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getBorderColor(?int $storeId = null): string
+    {
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_APPEARANCE_BORDER_COLOR,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    /**
+     * Configured card/surface background colour, or "".
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getSurfaceColor(?int $storeId = null): string
+    {
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_APPEARANCE_SURFACE_COLOR,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    /**
+     * Configured card corner radius (e.g. "10px" or "0"), or "".
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getCardRadius(?int $storeId = null): string
+    {
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_APPEARANCE_CARD_RADIUS,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    /**
+     * Configured font-family stack, or "" to inherit the store theme font.
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getFontFamily(?int $storeId = null): string
+    {
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_APPEARANCE_FONT_FAMILY,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
     }
 }
 

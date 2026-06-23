@@ -22,6 +22,7 @@ use Magento\Framework\App\RequestInterface;
 use Magento\Framework\View\Element\Block\ArgumentInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Montu\Affiliate\Model\Config;
+use Montu\Affiliate\Model\Config\Source\ThemeMode;
 use Montu\Affiliate\Model\Data\AffiliateRecommendations;
 use Montu\Affiliate\Service\RecommendationClient;
 
@@ -91,6 +92,146 @@ class Storefront implements ArgumentInterface
     public function getTitle(): string
     {
         return $this->config->getStorefrontTitle();
+    }
+
+    // ----- White-label appearance ---------------------------------------------
+
+    /**
+     * Storefront theme mode: "auto" (sample the store at runtime), "manual"
+     * (use the admin colours), or "off" (neutral defaults). Drives both the
+     * server-rendered variable block and the runtime sampling script.
+     *
+     * @return string
+     */
+    public function getThemeMode(): string
+    {
+        $mode = $this->config->getThemeMode();
+        return in_array($mode, [ThemeMode::AUTO, ThemeMode::MANUAL, ThemeMode::OFF], true)
+            ? $mode
+            : ThemeMode::AUTO;
+    }
+
+    /**
+     * CSS custom properties to emit server-side from the admin appearance config.
+     *
+     * Returns a map of `--montu-*` variable => value for every colour/typography
+     * field the merchant has set (sanitised to safe CSS tokens). In "manual" mode
+     * these ARE the theme; in "auto" they seed the page until runtime sampling
+     * resolves; in "off" nothing is emitted (neutral defaults win). Empty/invalid
+     * values are skipped so the template default applies.
+     *
+     * @return array<string, string>
+     */
+    public function getAppearanceVars(): array
+    {
+        if ($this->getThemeMode() === ThemeMode::OFF) {
+            return [];
+        }
+
+        $vars = [];
+
+        $accent = $this->sanitizeColor($this->config->getAccentColor());
+        if ($accent !== null) {
+            $vars['--montu-accent'] = $accent;
+            $soft = $this->colorToSoft($accent);
+            if ($soft !== null) {
+                $vars['--montu-accent-soft'] = $soft;
+            }
+        }
+
+        $map = [
+            '--montu-accent-contrast' => $this->sanitizeColor($this->config->getAccentTextColor()),
+            '--montu-text' => $this->sanitizeColor($this->config->getTextColor()),
+            '--montu-muted' => $this->sanitizeColor($this->config->getMutedColor()),
+            '--montu-border' => $this->sanitizeColor($this->config->getBorderColor()),
+            '--montu-surface' => $this->sanitizeColor($this->config->getSurfaceColor()),
+            '--montu-radius' => $this->sanitizeLength($this->config->getCardRadius()),
+            '--montu-font' => $this->sanitizeFontFamily($this->config->getFontFamily()),
+        ];
+        foreach ($map as $name => $value) {
+            if ($value !== null) {
+                $vars[$name] = $value;
+            }
+        }
+
+        return $vars;
+    }
+
+    /**
+     * Validate a CSS colour token (hex, rgb/rgba, hsl/hsla, or a named colour),
+     * returning it unchanged or null if it is not a safe, recognised colour.
+     * Guards the inline <style> block against CSS injection from admin input.
+     *
+     * @param string $value
+     * @return string|null
+     */
+    private function sanitizeColor(string $value): ?string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+        $hex = '/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/';
+        $func = '/^(?:rgb|rgba|hsl|hsla)\(\s*[0-9.,%\/\s]+\)$/i';
+        $named = '/^[a-zA-Z]{1,30}$/';
+        if (preg_match($hex, $value) || preg_match($func, $value) || preg_match($named, $value)) {
+            return $value;
+        }
+        return null;
+    }
+
+    /**
+     * Validate a CSS length (e.g. "10px", "0", "0.5rem", "50%"), or null.
+     *
+     * @param string $value
+     * @return string|null
+     */
+    private function sanitizeLength(string $value): ?string
+    {
+        $value = trim($value);
+        return preg_match('/^[0-9]+(?:\.[0-9]+)?(?:px|rem|em|%)?$/', $value) ? $value : null;
+    }
+
+    /**
+     * Validate a font-family stack (letters, digits, spaces, commas, quotes,
+     * hyphens only), or null. Prevents breaking out of the declaration.
+     *
+     * @param string $value
+     * @return string|null
+     */
+    private function sanitizeFontFamily(string $value): ?string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+        return preg_match('/^[a-zA-Z0-9 ,"\'\-]+$/', $value) ? $value : null;
+    }
+
+    /**
+     * Derive a translucent "soft" tint from an accent colour for hover/active
+     * backgrounds. Hex accents become rgba(...,0.12); anything else falls back to
+     * a colour-mix so the tint always tracks the accent. Null if not derivable.
+     *
+     * @param string $accent
+     * @return string|null
+     */
+    private function colorToSoft(string $accent): ?string
+    {
+        if (preg_match('/^#([0-9a-fA-F]{6})$/', $accent, $m)) {
+            $r = hexdec(substr($m[1], 0, 2));
+            $g = hexdec(substr($m[1], 2, 2));
+            $b = hexdec(substr($m[1], 4, 2));
+            return "rgba($r, $g, $b, 0.12)";
+        }
+        if (preg_match('/^#([0-9a-fA-F]{3})$/', $accent, $m)) {
+            $r = hexdec(str_repeat($m[1][0], 2));
+            $g = hexdec(str_repeat($m[1][1], 2));
+            $b = hexdec(str_repeat($m[1][2], 2));
+            return "rgba($r, $g, $b, 0.12)";
+        }
+        // rgb()/hsl()/named: let CSS mix it with transparent at render time.
+        return "color-mix(in srgb, $accent 12%, transparent)";
     }
 
     /**

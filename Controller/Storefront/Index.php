@@ -113,8 +113,9 @@ class Index implements HttpGetActionInterface
 
         $page = $this->pageFactory->create();
 
-        // Page title: "<configured title> · <code>"
-        $title = $this->config->getStorefrontTitle();
+        // Browser/tab title: "<configured title> · <code>", translated into the
+        // storefront locale applied above so it matches the page heading.
+        $title = (string) __($this->config->getStorefrontTitle());
         $page->getConfig()->getTitle()->set(trim($title . ' · ' . $code, ' ·'));
 
         return $page;

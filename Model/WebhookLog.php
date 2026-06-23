@@ -332,14 +332,21 @@ class WebhookLog extends AbstractModel
      */
     public function markAsFailed(string $errorMessage, ?int $statusCode = null, ?string $responseBody = null): self
     {
-        $this->incrementRetryCount()
-             ->setHttpStatusCode($statusCode)
+        $this->setHttpStatusCode($statusCode)
              ->setResponseBody($responseBody)
              ->setErrorMessage($errorMessage);
 
+        // Schedule the next retry from the number of attempts that have ALREADY
+        // failed (the pre-increment retry_count), so the first retry waits 1 min
+        // (match(0)), the second 5 min, and so on, matching the documented
+        // backoff. Computing this after incrementing would skip the 1-minute tier.
+        $nextRetryAt = $this->calculateNextRetryTime();
+
+        $this->incrementRetryCount();
+
         if ($this->canRetry()) {
             $this->setStatus(self::STATUS_FAILED)
-                 ->setNextRetryAt($this->calculateNextRetryTime());
+                 ->setNextRetryAt($nextRetryAt);
         } else {
             $this->setStatus(self::STATUS_MAX_RETRIES)
                  ->setNextRetryAt(null);

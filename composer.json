@@ -1,14 +1,30 @@
 {
     "name": "montu/module-affiliate",
-    "description": "Montu Affiliate Tracking Extension for Magento 2 - Captures affiliate referral codes and sends order webhooks",
+    "description": "Montu Affiliate Tracking Extension for Magento 2 - Captures affiliate referral codes, attributes orders, sends signed order webhooks, and renders a white-label affiliate storefront.",
     "type": "magento2-module",
-    "license": "proprietary",
+    "license": "OSL-3.0",
+    "homepage": "https://montu.io",
+    "keywords": [
+        "magento",
+        "magento2",
+        "magento-module",
+        "affiliate",
+        "affiliate-tracking",
+        "referral",
+        "webhook",
+        "montu"
+    ],
     "authors": [
         {
             "name": "Montu",
-            "email": "vicente@montu.io"
+            "email": "dev@montu.io",
+            "homepage": "https://montu.io"
         }
     ],
+    "support": {
+        "email": "dev@montu.io",
+        "issues": "https://gitlab.com/montu/module-affiliate/-/issues"
+    },
     "minimum-stability": "stable",
     "require": {
         "php": ">=8.1",
@@ -29,6 +45,11 @@
         ],
         "psr-4": {
             "Montu\\Affiliate\\": ""
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.0.x-dev"
         }
     }
 }

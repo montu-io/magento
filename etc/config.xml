@@ -32,6 +32,17 @@
                 <products_limit>12</products_limit>
                 <locale>en_US</locale>
             </storefront>
+            <appearance>
+                <theme_mode>auto</theme_mode>
+                <accent_color></accent_color>
+                <accent_text_color></accent_text_color>
+                <text_color></text_color>
+                <muted_color></muted_color>
+                <border_color></border_color>
+                <surface_color></surface_color>
+                <card_radius></card_radius>
+                <font_family></font_family>
+            </appearance>
         </montu_affiliate>
     </default>
 </config>

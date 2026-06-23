@@ -1,0 +1,9 @@
+# Keep the distributed Composer package (dist tarball) lean by excluding
+# dev-only and internal files. These are still in the git repo, just not in the
+# `composer require` download.
+/.gitattributes  export-ignore
+/.gitignore      export-ignore
+/.claude         export-ignore
+/.DS_Store       export-ignore
+/docs            export-ignore
+/RELEASING.md    export-ignore

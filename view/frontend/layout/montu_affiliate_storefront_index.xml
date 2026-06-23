@@ -23,6 +23,10 @@
       xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <update handle="catalog_product_prices"/>
     <body>
+        <!-- The storefront template renders its own translated heading, so drop
+             Magento's page-main title block to avoid a duplicate (and untranslated)
+             H1 at the top of the page. -->
+        <referenceBlock name="page.main.title" remove="true"/>
         <referenceContainer name="content">
             <block class="Montu\Affiliate\Block\Storefront\ProductList"
                    name="montu.storefront.list"

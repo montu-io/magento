@@ -12,29 +12,34 @@ Composer en cualquier proyecto Magento 2.
 - ✅ **No Invasivo** — no modifica tablas core de Magento (crea las suyas)
 - ✅ **Asíncrono** — no bloquea el checkout; los webhooks se entregan por cron
 - ✅ **Fail-safe** — los observers nunca dejan escapar excepciones
-- ✅ **Reintentos automáticos** — 5 intentos con backoff exponencial
+- ✅ **Reintentos automáticos** — 5 intentos con backoff exponencial (1/5/15/30/60 min)
+- ✅ **White-label** — el storefront del afiliado adopta los colores y la tipografía de
+  cualquier tema de la tienda (o se configuran a mano en el admin)
 
 ---
 
 ## 📦 Instalación vía Composer
 
-> **Nota:** este paquete vive como subcarpeta `magento/` del monorepo de Montu. Composer
-> no puede instalar una subcarpeta con un repositorio `vcs` directo (necesita el
-> `composer.json` en la raíz del repo). Por eso se ofrecen dos vías.
+El paquete está publicado en **Packagist público**, así que la instalación es directa,
+sin configurar repositorios:
 
-### Opción A — Repositorio `path` (desarrollo / monorepo / CI)
+```bash
+composer require montu/module-affiliate
+```
 
-Si tienes el monorepo en disco (o lo clonas en tu pipeline), apunta Composer a la carpeta:
+Requisitos: Magento 2.4.x y PHP 8.1+.
+
+<details>
+<summary>Instalación para desarrollo (monorepo / repositorio <code>path</code>)</summary>
+
+Este paquete vive como subcarpeta `magento/` del monorepo de Montu. Para trabajar contra
+el código en disco (cambios en vivo), apunta Composer a la carpeta con un repo `path`:
 
 ```jsonc
 // composer.json del proyecto Magento
 {
   "repositories": [
-    {
-      "type": "path",
-      "url": "../monorepo/magento",
-      "options": { "symlink": true }
-    }
+    { "type": "path", "url": "../monorepo/magento", "options": { "symlink": true } }
   ]
 }
 ```
@@ -43,36 +48,13 @@ Si tienes el monorepo en disco (o lo clonas en tu pipeline), apunta Composer a l
 composer require montu/module-affiliate:@dev
 ```
 
-`symlink: true` enlaza la carpeta (cambios en vivo, ideal para desarrollo). Usa
-`"symlink": false` para que Composer **copie** el paquete (recomendado en builds/deploys).
+`symlink: true` enlaza la carpeta; usa `"symlink": false` para que Composer **copie** el
+paquete (recomendado en builds/deploys).
 
-### Opción B — Repositorio `vcs` (remoto, producción)
+</details>
 
-Para instalar desde git de forma remota, el paquete debe estar en la **raíz** de un
-repositorio. Publica esta carpeta a un repo dedicado mediante un *subtree split*:
-
-```bash
-# desde la raíz del monorepo, publica magento/ a un repo dedicado
-git subtree push --prefix=magento git@gitlab.com:montu/module-affiliate.git main
-# (o usa splitsh-lite en CI para mantener el split actualizado y con tags)
-```
-
-Luego, en el proyecto Magento:
-
-```jsonc
-{
-  "repositories": [
-    { "type": "vcs", "url": "git@gitlab.com:montu/module-affiliate.git" }
-  ]
-}
-```
-
-```bash
-composer require montu/module-affiliate:^1.0   # usa un tag git como versión
-```
-
-> El `composer.json` **no fija `version`**: Composer toma la versión de los **tags git**
-> (`git tag v1.0.0`). Etiqueta los releases en el repo split para poder requerir `^1.0`.
+> El `composer.json` **no fija `version`**: Composer toma la versión de los **tags git** del
+> repo publicado en Packagist (`git tag v1.0.0`), así que puedes fijar `^1.0` si lo necesitas.
 
 ### Activar el módulo (después de `composer require`)
 
@@ -106,8 +88,38 @@ bin/magento cache:clean
 | Enable Storefront Page | Activa la ruta `/storefront/{code}` | No |
 | Route Path Prefix | Prefijo de la URL pública | `storefront` |
 | Page Heading | Título de la página | `Recommended products` |
-| Recommendations Endpoint URL | Endpoint Montu de productos recomendados (vacío → datos de ejemplo) | - |
+| Recommendations Endpoint URL | Endpoint Montu de productos recomendados | - |
+| Storefront Language | Idioma de la página: `en_US`, `es_ES` o `es_CL` (Chile) | `en_US` |
 | Max Products | Máximo de productos a mostrar | 12 |
+
+> **Idioma:** Magento **no** hace fallback de `es_CL` → `es_ES`, por eso el módulo
+> incluye traducciones propias para Chile (`i18n/es_CL.csv`). Para una tienda chilena,
+> selecciona **Spanish (Chile)**.
+
+### Apariencia / White-label (sección **Appearance**)
+
+El storefront es **white-label**: adopta los colores y la tipografía de la tienda
+automáticamente. Todos los colores, bordes, radios de tarjeta y la fuente se controlan
+por variables CSS.
+
+| Campo | Descripción | Default |
+|-------|-------------|---------|
+| Theme Mode | `Auto` (muestrea el tema de la tienda en runtime), `Manual` (usa los colores de abajo) u `Off` (estilo neutro) | `Auto` |
+| Accent / Primary Color | Color principal (botones, lista activa, resaltados). Acepta `#hex`, `rgb()`/`rgba()` o nombre CSS | (muestreado) |
+| Accent Text Color | Color de texto legible sobre el acento | `#ffffff` |
+| Body Text Color | Color de texto del storefront (vacío → hereda el tema) | (heredado) |
+| Muted Text Color | Color de texto secundario (conteos, subtítulos) | `#6d6d6d` |
+| Border Color | Color de bordes/divisores | `#e3e3e3` |
+| Card Background Color | Fondo de las tarjetas de producto | `#ffffff` |
+| Card Corner Radius | Radio de esquina de las tarjetas (`10px`, `0`, `0.5rem`) | `10px` |
+| Font Family | Stack de fuentes del storefront (vacío → hereda la fuente del tema) | (heredado) |
+
+- **Auto:** sin configurar nada, el storefront muestrea el color del botón primario, el
+  color de texto y la fuente del tema vivo de la tienda (Luma, custom o re-skin) y se
+  adapta. Los valores de arriba sirven como semilla/fallback.
+- **Manual:** fija exactamente los colores configurados, sin muestreo runtime. Los campos
+  vacíos usan el default neutro.
+- **Off:** estilo neutro por defecto (sin muestreo, ignora los colores).
 
 ---
 
@@ -126,11 +138,21 @@ código (`^[a-zA-Z0-9_\-]{1,100}$`), **escribe la cookie en el servidor** (mismo
 nombre/duración que la captura por JS) y renderiza la página, declarada
 **`cacheable="false"`** para que el Full Page Cache / Fastly nunca la sirva cacheada.
 
-Los productos se obtienen vía `Service/RecommendationClient.php`. **El endpoint de Montu
-aún no existe**, así que por ahora devuelve **datos de ejemplo** (`USE_STUB_DATA = true`).
-Cuando la API esté lista: configurar *Recommendations Endpoint URL* y poner
-`USE_STUB_DATA = false`. La forma esperada del JSON está en
-`RecommendationClient::parseResponse()`.
+Los productos se obtienen vía `Service/RecommendationClient.php` desde el endpoint de
+recomendaciones de Montu (`GET /montu/api/v1/ecommerce/magento/recommendations/{store_id}/{code}`),
+firmado con HMAC-SHA256 (igual que el webhook). Configura *Recommendations Endpoint URL* en
+admin con la URL terminada en el id de tienda. La forma esperada del JSON está documentada en
+`RecommendationClient::parseResponse()`. Si el endpoint falla o no responde, la página degrada
+con elegancia (datos de ejemplo) en vez de romperse.
+
+> **Full Page Cache / Fastly:** la ruta `/storefront/{code}` está declarada
+> `cacheable="false"`, así que el FPC/Fastly nunca la cachea (es por-afiliado y escribe la
+> cookie). El JS de captura (`tracking.js`) lee el parámetro `?_m_aff=` en el cliente, así
+> que funciona aunque el resto de las páginas estén cacheadas.
+>
+> **Queue-it / Klevu / reglas de path:** si la tienda tiene una sala de espera virtual o un
+> proxy de búsqueda delante del storefront, agrega el prefijo de la ruta (`/storefront/...`)
+> a la lista de paths permitidos para que no sea interceptado.
 
 ---
 
@@ -249,6 +271,10 @@ bin/magento setup:upgrade
 
 - Magento 2.4.x, PHP 8.1+ (ver `composer.json` para los módulos Magento requeridos)
 - Cron de Magento funcionando (`* * * * * php bin/magento cron:run`)
+
+## Licencia
+
+Open Software License 3.0 (OSL-3.0) — ver [`LICENSE.txt`](LICENSE.txt).
 
 ## Soporte
 

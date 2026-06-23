@@ -137,6 +137,47 @@
                     </depends>
                 </field>
             </group>
+            <group id="appearance" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Appearance (White-label)</label>
+                <comment>Control how the affiliate storefront is styled. "Auto" makes it match your store theme automatically; "Manual" lets you pin exact brand colours; "Off" uses neutral defaults. All colour fields accept hex (#000000), rgb()/rgba(), or a CSS colour name. Leave a field blank to inherit the theme / use the default.</comment>
+                <field id="theme_mode" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Theme Mode</label>
+                    <source_model>Montu\Affiliate\Model\Config\Source\ThemeMode</source_model>
+                    <comment>Auto: match the store theme at runtime. Manual: use the colours below. Off: neutral default styling.</comment>
+                </field>
+                <field id="accent_color" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Accent / Primary Color</label>
+                    <comment>Main action colour (buttons, active list, highlights). Example: #5023CC. Leave blank in Auto mode to sample the store's primary button.</comment>
+                </field>
+                <field id="accent_text_color" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Accent Text Color</label>
+                    <comment>Readable text colour shown on top of the accent colour (default: #ffffff).</comment>
+                </field>
+                <field id="text_color" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Body Text Color</label>
+                    <comment>Primary text colour for the storefront. Leave blank to inherit the store theme text colour.</comment>
+                </field>
+                <field id="muted_color" translate="label comment" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Muted Text Color</label>
+                    <comment>Secondary text colour (counts, subtitles). Example: #6d6d6d.</comment>
+                </field>
+                <field id="border_color" translate="label comment" type="text" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Border Color</label>
+                    <comment>Colour of card borders, dividers and the pager (default: #e3e3e3).</comment>
+                </field>
+                <field id="surface_color" translate="label comment" type="text" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Card Background Color</label>
+                    <comment>Background colour of the product cards (default: #ffffff).</comment>
+                </field>
+                <field id="card_radius" translate="label comment" type="text" sortOrder="80" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Card Corner Radius</label>
+                    <comment>Corner radius for product cards. Example: 10px, 0, 0.5rem. Leave blank for the default (10px).</comment>
+                </field>
+                <field id="font_family" translate="label comment" type="text" sortOrder="90" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Font Family</label>
+                    <comment>Optional font-family stack for the storefront. Example: "Merriweather Sans", sans-serif. Leave blank to inherit the store theme font.</comment>
+                </field>
+            </group>
         </section>
     </system>
 </config>

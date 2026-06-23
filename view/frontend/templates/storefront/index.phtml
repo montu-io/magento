@@ -23,8 +23,10 @@ $affiliatePicture = $viewModel->getAffiliateProfilePicture();
 $affiliateLabel = $affiliateName !== '' ? $affiliateName : $affiliateCode;
 $filters = $viewModel->getListFilters();
 $imageId = 'category_page_grid';
+$themeMode = $viewModel->getThemeMode();
+$appearanceVars = $viewModel->getAppearanceVars();
 ?>
-<div class="montu-storefront">
+<div class="montu-storefront" data-montu-theme-mode="<?= $block->escapeHtmlAttr($themeMode) ?>">
     <div class="montu-storefront__header">
         <?php if ($affiliatePicture): ?>
             <img class="montu-storefront__avatar"
@@ -174,10 +176,14 @@ $imageId = 'category_page_grid';
 
 <style>
     /*
-     * White-label: colours are driven by CSS custom properties. The defaults
-     * below track a neutral storefront palette; storefront-theme.js then samples
-     * the merchant theme's own primary button / link colour at runtime and
-     * overrides --montu-accent so the page always matches the live store.
+     * White-label: EVERY colour, the card surface, the corner radius, the body
+     * text colour and the font are driven by CSS custom properties. The defaults
+     * below track a neutral storefront palette; colours/typography the merchant
+     * sets in admin (Stores > Config > Montu > Appearance) are emitted in the
+     * scoped block right after this one, and in "auto" mode storefront-theme.js
+     * samples the live merchant theme at runtime and overrides the variables so
+     * the page always matches the store. Text colour and font default to
+     * `inherit`, so an unstyled page already adopts the store theme typography.
      */
     .montu-storefront {
         --montu-accent: #1979c3;
@@ -185,14 +191,18 @@ $imageId = 'category_page_grid';
         --montu-accent-soft: rgba(25, 121, 195, 0.12);
         --montu-border: #e3e3e3;
         --montu-muted: #6d6d6d;
+        --montu-surface: #ffffff;
+        --montu-radius: 10px;
         max-width: 1440px; margin: 0 auto; padding: 20px;
+        color: var(--montu-text, inherit);
+        font-family: var(--montu-font, inherit);
     }
     .montu-storefront__header { display: flex; align-items: center; gap: 18px;
         margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid var(--montu-accent); }
     .montu-storefront__avatar { width: 72px; height: 72px; flex: 0 0 auto; border-radius: 50%;
-        object-fit: cover; border: 2px solid var(--montu-accent); background: #f3f3f3; }
+        object-fit: cover; border: 2px solid var(--montu-accent); background: var(--montu-accent-soft); }
     .montu-storefront__header-text { min-width: 0; }
-    .montu-storefront__title { margin: 0 0 6px; }
+    .montu-storefront__title { margin: 0 0 6px; color: var(--montu-text, inherit); }
     .montu-storefront__subtitle { color: var(--montu-muted); font-size: 1.4rem; margin: 0; }
     .montu-storefront__subtitle strong { color: var(--montu-accent); }
     .montu-storefront__body { display: grid; grid-template-columns: 240px 1fr; gap: 28px; align-items: start; }
@@ -200,7 +210,7 @@ $imageId = 'category_page_grid';
         text-transform: uppercase; letter-spacing: .04em; font-size: 1.2rem; color: var(--montu-muted); }
     .montu-storefront__filter-list { list-style: none; margin: 0; padding: 0; }
     .montu-storefront__filter-item a { display: flex; justify-content: space-between; gap: 8px;
-        padding: 9px 12px; border-radius: 6px; color: inherit; text-decoration: none;
+        padding: 9px 12px; border-radius: calc(var(--montu-radius) * 0.6); color: inherit; text-decoration: none;
         border: 1px solid transparent; transition: background .15s ease, color .15s ease; }
     .montu-storefront__filter-item a:hover { background: var(--montu-accent-soft); }
     .montu-storefront__filter-item.is-active a { background: var(--montu-accent-soft);
@@ -209,17 +219,18 @@ $imageId = 'category_page_grid';
     .montu-storefront__filter-item.is-active .montu-storefront__filter-count { color: var(--montu-accent); }
     .montu-storefront__toolbar { display: flex; justify-content: space-between; align-items: baseline;
         gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-    .montu-storefront__active-list { font-size: 1.8rem; font-weight: 700; }
+    .montu-storefront__active-list { font-size: 1.8rem; font-weight: 700; color: var(--montu-text, inherit); }
     .montu-storefront__count { color: var(--montu-muted); }
     .montu-storefront__grid { display: grid; gap: 20px; list-style: none; margin: 0; padding: 0;
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-    .montu-storefront__item { border: 1px solid var(--montu-border); border-radius: 10px;
-        padding: 14px; background: #fff; transition: box-shadow .18s ease, transform .18s ease; }
+    .montu-storefront__item { border: 1px solid var(--montu-border); border-radius: var(--montu-radius);
+        padding: 14px; background: var(--montu-surface); transition: box-shadow .18s ease, transform .18s ease; }
     .montu-storefront__item:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, .08); transform: translateY(-2px); }
     .montu-storefront__item .product-item-info { width: 100%; }
     .montu-storefront__pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
         justify-content: center; margin-top: 32px; }
-    .montu-storefront__page { padding: 8px 12px; border: 1px solid var(--montu-border); border-radius: 6px;
+    .montu-storefront__page { padding: 8px 12px; border: 1px solid var(--montu-border);
+        border-radius: calc(var(--montu-radius) * 0.6);
         text-decoration: none; color: inherit; transition: border-color .15s ease; }
     .montu-storefront__page:hover { border-color: var(--montu-accent); color: var(--montu-accent); }
     .montu-storefront__page.is-current { background: var(--montu-accent);
@@ -228,9 +239,19 @@ $imageId = 'category_page_grid';
 
     @media (max-width: 768px) {
         .montu-storefront__body { grid-template-columns: 1fr; }
-        .montu-storefront__filters { position: sticky; top: 0; z-index: 1; background: #fff; padding: 8px 0; }
+        .montu-storefront__filters { position: sticky; top: 0; z-index: 1; background: var(--montu-surface); padding: 8px 0; }
         .montu-storefront__filter-list { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .montu-storefront__filter-item a { white-space: nowrap; border: 1px solid var(--montu-border); }
         .montu-storefront__grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
     }
 </style>
+<?php /* Admin-configured appearance overrides (Manual mode, or Auto-mode seed). */ ?>
+<?php if ($appearanceVars !== []): ?>
+<style>
+    .montu-storefront {
+        <?php foreach ($appearanceVars as $name => $value): ?>
+        <?= /* @noEscape - keys are fixed --montu-* names, values are sanitised CSS tokens */ $name ?>: <?= /* @noEscape */ $value ?>;
+        <?php endforeach; ?>
+    }
+</style>
+<?php endif; ?>

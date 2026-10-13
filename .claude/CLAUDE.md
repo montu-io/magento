@@ -26,10 +26,17 @@ split to a dedicated repo for remote `vcs` install).
 - This module is the **Magento counterpart** to the Shopify and WooCommerce
   ecommerce integrations. It is one of several "platform" connectors that feed
   the shared Montu ecommerce-order pipeline.
-- The **backend receiving end** lives in the Django app at
-  `back/montu/rest_api/v1/views/ecommerce/magento/` (Django Ninja webhook
-  ingress + `MagentoOrderParser` → shared `OrderCollection`). `MAGENTO` is a
-  value of `PlatformCodeEnum`.
+- The **backend receiving end**: webhooks go to API Gateway
+  (`https://events.montu.io/webhooks/magento/{store_id}`, staging:
+  `events-staging.montu.io`), which enqueues the raw body plus the
+  `X-Montu-*` headers as SQS message attributes. The Django drain
+  (`back/montu/commands/events_queue/`) routes each message by its `type`
+  attribute to `MagentoWebhookHandler`
+  (`back/montu/strategy/events_queue/handlers/`), which runs
+  `ProcessMagentoOrderWebhook`: it validates the signature
+  (`back/clients/ecommerce/magento/webhook.py`) and parses the payload
+  (`back/clients/ecommerce/magento/models/` + `order_parser.py`) into the
+  shared `OrderCollection`. `MAGENTO` is a value of `PlatformCodeEnum`.
 - When changing the webhook payload here, the parser/schema on the backend side
   must change in lockstep.
 
@@ -122,8 +129,9 @@ and decrypted on read. Config XML paths follow `montu_affiliate/<group>/<field>`
 6. **`declare(strict_types=1)`** at the top of every PHP class; full type hints
    and PHPDoc blocks (match the existing files' style).
 7. **Keep the backend in sync** — any change to the webhook payload requires a
-   matching change to `back/montu/rest_api/v1/views/ecommerce/magento/`
-   (`schema/` + `order_parser/`). Verify both sides together.
+   matching change to `back/clients/ecommerce/magento/` (`models/` +
+   `order_parser.py`). Verify both sides together. A new header the backend
+   needs must also be mapped as a message attribute on the API Gateway route.
 8. **Heavy/external work is async** — never call out to Montu inline during
    checkout. Queue a row and let `Cron/ProcessWebhooks` deliver it.
 

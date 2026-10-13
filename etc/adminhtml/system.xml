@@ -59,7 +59,7 @@
                 </field>
                 <field id="endpoint_url" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Webhook Endpoint URL</label>
-                    <comment>The URL where order data will be sent. Example: https://api.montu.io/webhooks/orders</comment>
+                    <comment>The URL where order data will be sent. Example: https://events.montu.io/webhooks/magento/123 (ends with your store id)</comment>
                     <validate>required-entry validate-url</validate>
                     <depends>
                         <field id="enabled">1</field>

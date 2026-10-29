@@ -70,10 +70,17 @@ back a cart or checkout).
 
 ### Webhook delivery details
 
-- **Headers:** `X-Montu-Api-Key`, `X-Montu-Store-Domain`, `X-Montu-Store-Code`,
-  `X-Montu-Timestamp`, `X-Montu-Signature` (HMAC-SHA256 of the **raw JSON body**
-  using the API key), plus version/event headers.
-- **Retries:** 5 attempts with 1/5/15/30/60-minute backoff, then `max_retries`.
+- **Headers:** `X-Montu-Key-Id` (public key id), `X-Montu-Store-Domain`,
+  `X-Montu-Store-Code`, `X-Montu-Timestamp`, `X-Montu-Signature` (HMAC-SHA256 of
+  the **raw JSON body** using the signing secret, which never travels), plus
+  version/event headers. If the key id or secret is empty nothing is sent and the
+  attempt counts as failed, so an unconfigured store uses up the retry budget
+  and its rows end as `max_retries` (re-queue them after configuring the key).
+- **Retries:** 5 attempts in total, waiting 1/5/15/30 minutes between them (the
+  cron runs every 5 minutes, so the first wait is effectively 5), then
+  `max_retries` — about an hour end to end.
+- **Key and secret are read from the order's store scope**, so a multi-store
+  install can hold one Montu key per store view.
 - The backend validates the signature **and** rejects timestamps older than
   5 minutes (replay protection).
 
@@ -110,8 +117,9 @@ magento/                         # package root (montu/module-affiliate)
 
 **Stores → Configuration → Montu → Affiliate Tracking**. Config is read through
 `Model/Config.php` (scope-aware via `ScopeConfigInterface`, store-scoped). The
-API key is stored **encrypted** (`obscure` field + `Encrypted` backend model)
-and decrypted on read. Config XML paths follow `montu_affiliate/<group>/<field>`.
+signing secret (`webhook/signing_secret`) is stored **encrypted** (`obscure`
+field + `Encrypted` backend model) and decrypted on read; the public key id
+(`webhook/key_id`) is plain text. Both are issued by Montu per store. Config XML paths follow `montu_affiliate/<group>/<field>`.
 
 ## Conventions (when editing the module)
 
@@ -122,7 +130,7 @@ and decrypted on read. Config XML paths follow `montu_affiliate/<group>/<field>`
 3. **Config goes through `Model/Config.php`** — never read `ScopeConfigInterface`
    directly elsewhere. Add a typed getter + an `XML_PATH_*` constant, and a field
    in `etc/adminhtml/system.xml` (+ default in `config.xml`).
-4. **Secrets are encrypted** — API keys/tokens use `type="obscure"` +
+4. **Secrets are encrypted** — signing secrets/tokens use `type="obscure"` +
    `Magento\Config\Model\Config\Backend\Encrypted` and `EncryptorInterface`.
 5. **Constructor DI only** — declare dependencies in constructors; wire in
    `di.xml`. No `ObjectManager::getInstance()` in business code.

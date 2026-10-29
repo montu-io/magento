@@ -23,7 +23,8 @@
     ],
     "support": {
         "email": "dev@montu.io",
-        "issues": "https://gitlab.com/montu/module-affiliate/-/issues"
+        "issues": "https://github.com/montu-io/magento/issues",
+        "source": "https://github.com/montu-io/magento"
     },
     "minimum-stability": "stable",
     "require": {

@@ -13,8 +13,13 @@ git tags.
 
 ## One-time setup
 
-1. **Create the public repo** (e.g. `git@gitlab.com:montu/module-affiliate.git`
-   or a GitHub equivalent). Empty, public.
+1. **Create the public repo.** Done: <https://github.com/montu-io/magento>
+   (`git@github.com:montu-io/magento.git`), added to the monorepo as the
+   `magento` remote:
+
+   ```bash
+   git remote add magento git@github.com:montu-io/magento.git   # once per clone
+   ```
 
 2. **Submit it to Packagist** — sign in at <https://packagist.org>, "Submit",
    paste the repo URL. Packagist reads `composer.json` (name `montu/module-affiliate`)
@@ -27,31 +32,43 @@ git tags.
 ## Each release
 
 From the monorepo root, with a clean working tree on the branch you want to ship
-(usually `main`):
+(usually `main`, after the MR is merged and deployed):
 
 ```bash
-# 1. Split magento/ into a standalone history and push it to the public repo's main.
-git subtree push --prefix=magento git@gitlab.com:montu/module-affiliate.git main
+git checkout main && git pull origin main
+git fetch magento --tags                       # see what's already published
 
-# 2. Tag the release ON THE SPLIT REPO (Composer derives the version from tags).
-#    Clone the split repo somewhere (or add it as a remote) and tag the new head:
-git clone git@gitlab.com:montu/module-affiliate.git /tmp/module-affiliate
-cd /tmp/module-affiliate
-git tag v1.0.0
-git push origin v1.0.0
+# 1. Split magento/ into a standalone history (the split is deterministic, so it
+#    fast-forwards the public repo's main; a "non-fast-forward" rejection means
+#    the histories diverged -- stop and investigate, never force-push).
+SHA=$(git subtree split --prefix=magento)
+git push magento "$SHA:refs/heads/main"
+
+# 2. Tag that exact commit ON THE PUBLIC REPO (Composer reads versions from tags).
+#    Pushing the tag by SHA avoids creating the tag in the monorepo itself.
+git push magento "$SHA:refs/tags/v1.1.0"
+
+# 3. Check
+git ls-remote --tags magento
 ```
 
-> For frequent releases, prefer **`splitsh-lite`** in CI over `git subtree push`
-> (it's much faster and produces a stable split history):
+Packagist picks the new tag up through its GitHub integration; if it doesn't
+show on <https://packagist.org/packages/montu/module-affiliate> within a few
+minutes, press "Update" there.
+
+> For frequent releases, prefer **`splitsh-lite`** in CI over `git subtree split`
+> (much faster on a large monorepo, same split history):
 >
 > ```bash
 > SHA=$(splitsh-lite --prefix=magento)
-> git push git@gitlab.com:montu/module-affiliate.git "$SHA:refs/heads/main"
+> git push magento "$SHA:refs/heads/main"
 > ```
 
 ## Versioning
 
-- Follow **SemVer**: `v1.0.0`, `v1.1.0` (new features), `v1.0.1` (fixes).
+- Follow **SemVer**: `v1.0.0`, `v1.1.0` (new features), `v1.0.1` (fixes). A
+  change that requires merchants to reconfigure (e.g. the key id + signing
+  secret replacing the API key) is a breaking change for anyone on `^1.0`.
 - `composer.json` intentionally has **no `version`** field — the version comes
   from git tags. `extra.branch-alias` maps `dev-main` → `1.0.x-dev` for installs
   that track the branch.

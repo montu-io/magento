@@ -12,7 +12,7 @@ Composer en cualquier proyecto Magento 2.
 - ✅ **No Invasivo** — no modifica tablas core de Magento (crea las suyas)
 - ✅ **Asíncrono** — no bloquea el checkout; los webhooks se entregan por cron
 - ✅ **Fail-safe** — los observers nunca dejan escapar excepciones
-- ✅ **Reintentos automáticos** — 5 intentos con backoff exponencial (1/5/15/30/60 min)
+- ✅ **Reintentos automáticos** — 5 intentos con backoff (1/5/15/30 min entre intentos)
 - ✅ **White-label** — el storefront del afiliado adopta los colores y la tipografía de
   cualquier tema de la tienda (o se configuran a mano en el admin)
 
@@ -79,7 +79,12 @@ bin/magento cache:clean
 | Cookie Lifetime | Días de duración | 15 |
 | Enable Webhook | Activa webhooks | No |
 | Webhook URL | URL de tu endpoint | - |
-| API Key | Tu API key (almacenada **encriptada**) | - |
+| Key ID | Id público de la clave (empieza con `kid_`); se envía en `X-Montu-Key-Id` | - |
+| Signing Secret | Secreto de firma (almacenado **encriptado**); nunca se envía por la red | - |
+
+> **Key ID y Signing Secret** los emite Montu por tienda y por ambiente (staging y
+> producción tienen pares distintos). El Key ID identifica a la tienda; el secreto solo
+> se usa localmente para firmar cada request con HMAC-SHA256.
 
 ### Storefront del afiliado (sección **Affiliate Storefront**)
 
@@ -177,9 +182,17 @@ con elegancia (datos de ejemplo) en vez de romperse.
 
 | Intento | 1º | 2º | 3º | 4º | 5º |
 |---------|----|----|----|----|----|
-| Espera  | 1 min | 5 min | 15 min | 30 min | 1 hora |
+| Espera antes del intento | — (próximo cron) | 1 min | 5 min | 15 min | 30 min |
 
-Tras el 5º intento el webhook se marca como `max_retries`.
+Son 5 intentos en total (cerca de una hora, considerando que el cron corre cada 5 minutos,
+así que esperas menores a 5 minutos se redondean al siguiente cron). Si el 5º intento
+falla, el webhook se marca como `max_retries` y no se reintenta solo; se re-encola con:
+
+```sql
+UPDATE montu_affiliate_webhook_log
+SET status = 'pending', retry_count = 0, next_retry_at = NULL
+WHERE status = 'max_retries';
+```
 
 ---
 
@@ -189,12 +202,24 @@ Tras el 5º intento el webhook se marca como `max_retries`.
 
 ```
 Content-Type: application/json
-X-Montu-Api-Key: <tu_api_key>
+X-Montu-Webhook-Version: 1.0
+X-Montu-Event: order.placed
+X-Montu-Key-Id: <tu_key_id>
 X-Montu-Store-Domain: <url_tienda>
 X-Montu-Store-Code: <codigo_tienda>
 X-Montu-Timestamp: <unix_timestamp>
 X-Montu-Signature: <hmac_sha256 del body crudo>
 ```
+
+La firma es `hash_hmac('sha256', <body JSON crudo>, <signing_secret>)`. El secreto **nunca
+viaja** en el request: solo el `X-Montu-Key-Id` (público) identifica la clave. Las
+peticiones de recomendaciones (GET) usan los mismos headers `X-Montu-Key-Id`,
+`X-Montu-Timestamp` y `X-Montu-Signature`, firmando `"{timestamp}.{code}"` con el mismo
+secreto. Si falta el Key ID o el secreto, no se envía nada y el intento cuenta como
+fallido: una tienda sin configurar agota los reintentos y sus webhooks quedan en
+`max_retries` (re-encolarlos con el SQL de arriba después de configurar la clave). El
+Key ID y el secreto se leen del **store view de la orden**, así que una instalación
+multi-tienda puede tener una clave por tienda.
 
 ### Body (JSON)
 
@@ -222,7 +247,9 @@ receptor vive en el backend Django: `back/montu/rest_api/v1/views/ecommerce/mage
 ## 🧪 Testing Local
 
 1. URL de prueba en [webhook.site](https://webhook.site).
-2. En admin → Webhook URL: `https://webhook.site/tu-uuid`, API Key: `test-key-123`.
+2. En admin → Webhook URL: `https://webhook.site/tu-uuid`, Key ID: `kid_test`, Signing Secret: `test-secret-123`.
+   Usa valores ficticios: **nunca** pegues credenciales reales con webhook.site (es un
+   endpoint público de terceros).
 3. Visitar `https://tu-tienda.test/?_m_aff=TEST123`, verificar cookie, crear una orden, y:
 
 ```bash

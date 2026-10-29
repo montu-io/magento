@@ -9,7 +9,7 @@
  * Block\Storefront\ProductList.
  *
  * The live Montu recommendations endpoint is called in fetchFromMontu() (signed
- * with the same HMAC-SHA256 scheme as the webhook); configure its URL in
+ * with HMAC-SHA256 using the signing secret, like the webhook); configure its URL in
  * montu_affiliate/storefront/products_endpoint. If the endpoint is unset, errors,
  * or returns nothing, the client degrades gracefully to demo recommendations
  * built from the real catalog by StubRecommendationProvider, so the storefront
@@ -101,9 +101,10 @@ class RecommendationClient
      * The configured endpoint URL already identifies the store (it ends with the
      * Montu integration / social-network-user id, exactly like the order webhook
      * URL); the affiliate code is appended as the final path segment, giving
-     * `.../recommendations/{store_id}/{code}`. The request is signed with the same
-     * HMAC-SHA256 scheme the backend uses for the webhook, over `timestamp.code`,
-     * so the backend authenticates it identically.
+     * `.../recommendations/{store_id}/{code}`. The request carries the public key
+     * id in X-Montu-Key-Id and is signed with HMAC-SHA256 over `timestamp.code`
+     * using the signing secret, which is never sent. Throws when the key id or
+     * secret is not configured (the caller falls back to demo data).
      *
      * @param string $endpoint
      * @param string $affiliateCode
@@ -111,6 +112,12 @@ class RecommendationClient
      */
     private function fetchFromMontu(string $endpoint, string $affiliateCode): AffiliateRecommendations
     {
+        $keyId = $this->config->getKeyId();
+        $signingSecret = $this->config->getSigningSecret();
+        if ($keyId === '' || $signingSecret === '') {
+            throw new \RuntimeException('Montu signing key is not configured');
+        }
+
         $url = rtrim($endpoint, '/') . '/' . rawurlencode($affiliateCode);
 
         $curl = new Curl();
@@ -119,18 +126,15 @@ class RecommendationClient
         $curl->setOption(CURLOPT_RETURNTRANSFER, true);
         $curl->setOption(CURLOPT_SSL_VERIFYPEER, true);
 
-        $apiKey = $this->config->getApiKey();
         $timestamp = (string) time();
-        if ($apiKey !== '') {
-            $curl->addHeader('X-Montu-Api-Key', $apiKey);
-            // GET has no body, so sign "{timestamp}.{code}" (same scheme as the
-            // backend's recommendations endpoint), keyed by the API key.
-            $curl->addHeader('X-Montu-Timestamp', $timestamp);
-            $curl->addHeader(
-                'X-Montu-Signature',
-                hash_hmac('sha256', $timestamp . '.' . $affiliateCode, $apiKey)
-            );
-        }
+        // GET has no body, so sign "{timestamp}.{code}" (same scheme as the
+        // backend's recommendations endpoint) with the secret, which never travels.
+        $curl->addHeader('X-Montu-Key-Id', $keyId);
+        $curl->addHeader('X-Montu-Timestamp', $timestamp);
+        $curl->addHeader(
+            'X-Montu-Signature',
+            hash_hmac('sha256', $timestamp . '.' . $affiliateCode, $signingSecret)
+        );
         $curl->addHeader('Accept', 'application/json');
 
         $curl->get($url);

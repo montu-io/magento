@@ -71,7 +71,10 @@ class WebhookService
             'error_message' => ''
         ];
 
-        $endpointUrl = $this->config->getWebhookEndpointUrl();
+        // Read the order's own store scope: the cron runs in the default store,
+        // so without a store id per-store-view endpoint/key values were ignored.
+        $storeId = (int) $order->getStoreId();
+        $endpointUrl = $this->config->getWebhookEndpointUrl($storeId);
 
         if (empty($endpointUrl)) {
             $result['error_message'] = 'Webhook endpoint URL is not configured';
@@ -79,9 +82,18 @@ class WebhookService
             return $result;
         }
 
+        $keyId = $this->config->getKeyId($storeId);
+        $signingSecret = $this->config->getSigningSecret($storeId);
+
+        if ($keyId === '' || $signingSecret === '') {
+            $result['error_message'] = 'Webhook signing key is not configured';
+            $this->logger->warning('[Montu Affiliate] ' . $result['error_message']);
+            return $result;
+        }
+
         $payload = $this->buildOrderPayload($order, $affiliateCode);
         $jsonPayload = $this->json->serialize($payload);
-        $headers = $this->buildHeaders($jsonPayload);
+        $headers = $this->buildHeaders($jsonPayload, $keyId, $signingSecret);
 
         return $this->sendWebhook($endpointUrl, $jsonPayload, $headers);
     }
@@ -194,9 +206,11 @@ class WebhookService
      * Build headers for webhook request
      *
      * @param string $jsonPayload Serialized JSON body to sign
+     * @param string $keyId Public key id, sent as X-Montu-Key-Id
+     * @param string $signingSecret Secret used to sign the body; never sent
      * @return array
      */
-    private function buildHeaders(string $jsonPayload): array
+    private function buildHeaders(string $jsonPayload, string $keyId, string $signingSecret): array
     {
         $timestamp = (string) time();
 
@@ -206,13 +220,8 @@ class WebhookService
             'X-Montu-Webhook-Version' => self::WEBHOOK_VERSION,
             'X-Montu-Event' => self::EVENT_ORDER_PLACED,
             'X-Montu-Timestamp' => $timestamp,
+            'X-Montu-Key-Id' => $keyId,
         ];
-
-        // Add API Key for authentication
-        $apiKey = $this->config->getApiKey();
-        if (!empty($apiKey)) {
-            $headers['X-Montu-Api-Key'] = $apiKey;
-        }
 
         // Add store domain for identification
         try {
@@ -223,8 +232,8 @@ class WebhookService
             $this->logger->warning('[Montu Affiliate] Could not get store information for headers');
         }
 
-        // Sign the full request body for payload integrity verification
-        $headers['X-Montu-Signature'] = $this->generateSignature($apiKey, $jsonPayload);
+        // Sign the full request body for authentication and payload integrity
+        $headers['X-Montu-Signature'] = $this->generateSignature($signingSecret, $jsonPayload);
 
         return $headers;
     }
@@ -232,13 +241,13 @@ class WebhookService
     /**
      * Generate HMAC-SHA256 signature over the request body
      *
-     * @param string $apiKey
+     * @param string $signingSecret
      * @param string $payload The raw JSON body
      * @return string
      */
-    private function generateSignature(string $apiKey, string $payload): string
+    private function generateSignature(string $signingSecret, string $payload): string
     {
-        return hash_hmac('sha256', $payload, $apiKey);
+        return hash_hmac('sha256', $payload, $signingSecret);
     }
 
     /**

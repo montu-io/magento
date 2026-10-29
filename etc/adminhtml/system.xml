@@ -65,16 +65,24 @@
                         <field id="enabled">1</field>
                     </depends>
                 </field>
-                <field id="api_key" translate="label comment" type="obscure" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>API Key</label>
-                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
-                    <comment>Your Montu API Key for authentication. This will be sent as X-Montu-Api-Key header.</comment>
+                <field id="key_id" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Key ID</label>
+                    <comment>Public key id issued by Montu (starts with kid_). Sent with every request as X-Montu-Key-Id.</comment>
                     <validate>required-entry</validate>
                     <depends>
                         <field id="enabled">1</field>
                     </depends>
                 </field>
-                <field id="send_on_order_placed" translate="label comment" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="signing_secret" translate="label comment" type="obscure" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Signing Secret</label>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                    <comment>Secret issued by Montu together with the Key ID. Used to sign every request (HMAC-SHA256); it is never sent over the network.</comment>
+                    <validate>required-entry</validate>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="send_on_order_placed" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Send on Order Placed</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <comment>Send webhook when a new order is placed.</comment>
@@ -82,7 +90,7 @@
                         <field id="enabled">1</field>
                     </depends>
                 </field>
-                <field id="timeout" translate="label comment" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="timeout" translate="label comment" type="text" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Request Timeout (seconds)</label>
                     <comment>Maximum time in seconds to wait for webhook response (default: 30).</comment>
                     <validate>required-entry validate-digits validate-greater-than-zero</validate>

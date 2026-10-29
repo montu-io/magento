@@ -20,7 +20,8 @@
             <webhook>
                 <enabled>0</enabled>
                 <endpoint_url></endpoint_url>
-                <api_key></api_key>
+                <key_id></key_id>
+                <signing_secret></signing_secret>
                 <send_on_order_placed>1</send_on_order_placed>
                 <timeout>30</timeout>
             </webhook>

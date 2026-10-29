@@ -23,7 +23,8 @@ class Config
     private const XML_PATH_GENERAL_COOKIE_LIFETIME = 'montu_affiliate/general/cookie_lifetime';
     private const XML_PATH_WEBHOOK_ENABLED = 'montu_affiliate/webhook/enabled';
     private const XML_PATH_WEBHOOK_ENDPOINT_URL = 'montu_affiliate/webhook/endpoint_url';
-    private const XML_PATH_WEBHOOK_API_KEY = 'montu_affiliate/webhook/api_key';
+    private const XML_PATH_WEBHOOK_KEY_ID = 'montu_affiliate/webhook/key_id';
+    private const XML_PATH_WEBHOOK_SIGNING_SECRET = 'montu_affiliate/webhook/signing_secret';
     private const XML_PATH_WEBHOOK_SEND_ON_ORDER_PLACED = 'montu_affiliate/webhook/send_on_order_placed';
     private const XML_PATH_WEBHOOK_TIMEOUT = 'montu_affiliate/webhook/timeout';
     private const XML_PATH_STOREFRONT_ENABLED = 'montu_affiliate/storefront/enabled';
@@ -165,20 +166,39 @@ class Config
     }
 
     /**
-     * Get API key (decrypted)
+     * Get the public key id issued by Montu (sent as X-Montu-Key-Id)
      *
      * @param int|null $storeId
      * @return string
      */
-    public function getApiKey(?int $storeId = null): string
+    public function getKeyId(?int $storeId = null): string
     {
-        $encryptedKey = $this->scopeConfig->getValue(
-            self::XML_PATH_WEBHOOK_API_KEY,
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_WEBHOOK_KEY_ID,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    /**
+     * Get the signing secret issued by Montu (decrypted). Used only to sign
+     * requests; it is never sent over the network.
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getSigningSecret(?int $storeId = null): string
+    {
+        $encryptedSecret = $this->scopeConfig->getValue(
+            self::XML_PATH_WEBHOOK_SIGNING_SECRET,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
 
-        return $encryptedKey ? $this->encryptor->decrypt($encryptedKey) : '';
+        // Trimmed like the key id: a secret pasted with a trailing space or
+        // newline would otherwise sign every request wrongly, and Montu drops
+        // those deliveries after the gateway has already answered 200.
+        return $encryptedSecret ? trim($this->encryptor->decrypt($encryptedSecret)) : '';
     }
 
     /**

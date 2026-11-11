@@ -27,6 +27,11 @@ class WebhookLog extends AbstractModel
     public const DEFAULT_MAX_RETRIES = 5;
 
     /**
+     * Minutes to wait after each failed attempt; the last value repeats
+     */
+    private const BACKOFF_MINUTES = [1, 5, 15, 30, 60];
+
+    /**
      * @var string
      */
     protected $_eventPrefix = 'montu_affiliate_webhook_log';
@@ -71,6 +76,47 @@ class WebhookLog extends AbstractModel
     public function setOrderId(int $orderId): self
     {
         return $this->setData('order_id', $orderId);
+    }
+
+    /**
+     * Get event UUID
+     *
+     * @return string
+     */
+    public function getEventId(): string
+    {
+        return (string) $this->getData('event_id');
+    }
+
+    /**
+     * Get event type (order.placed, order.updated, creditmemo.created)
+     *
+     * @return string
+     */
+    public function getEventType(): string
+    {
+        return (string) ($this->getData('event_type') ?: EventType::ORDER_PLACED);
+    }
+
+    /**
+     * Get the store view of the order (0 when unknown, e.g. legacy rows)
+     *
+     * @return int
+     */
+    public function getStoreId(): int
+    {
+        return (int) $this->getData('store_id');
+    }
+
+    /**
+     * Get the JSON snapshot, null for legacy rows queued before v2
+     *
+     * @return string|null
+     */
+    public function getPayload(): ?string
+    {
+        $payload = $this->getData('payload');
+        return $payload !== null && $payload !== '' ? (string) $payload : null;
     }
 
     /**
@@ -178,17 +224,6 @@ class WebhookLog extends AbstractModel
     }
 
     /**
-     * Get HTTP status code
-     *
-     * @return int|null
-     */
-    public function getHttpStatusCode(): ?int
-    {
-        $code = $this->getData('http_status_code');
-        return $code !== null ? (int) $code : null;
-    }
-
-    /**
      * Set HTTP status code
      *
      * @param int|null $code
@@ -200,16 +235,6 @@ class WebhookLog extends AbstractModel
     }
 
     /**
-     * Get response body
-     *
-     * @return string|null
-     */
-    public function getResponseBody(): ?string
-    {
-        return $this->getData('response_body');
-    }
-
-    /**
      * Set response body
      *
      * @param string|null $body
@@ -218,16 +243,6 @@ class WebhookLog extends AbstractModel
     public function setResponseBody(?string $body): self
     {
         return $this->setData('response_body', $body);
-    }
-
-    /**
-     * Get error message
-     *
-     * @return string|null
-     */
-    public function getErrorMessage(): ?string
-    {
-        return $this->getData('error_message');
     }
 
     /**
@@ -273,26 +288,17 @@ class WebhookLog extends AbstractModel
     }
 
     /**
-     * Calculate next retry time using exponential backoff
-     * Retry delays: 1min, 5min, 15min, 30min, 1hour
+     * Calculate the next retry time from the backoff list. The wait is picked
+     * by the number of attempts that have ALREADY failed (the pre-increment
+     * retry_count); past the end of the list the last value repeats.
      *
      * @return string
      */
     public function calculateNextRetryTime(): string
     {
-        $retryCount = $this->getRetryCount();
-        
-        // Exponential backoff with max cap
-        $delayMinutes = match ($retryCount) {
-            0 => 1,      // First retry: 1 minute
-            1 => 5,      // Second retry: 5 minutes
-            2 => 15,     // Third retry: 15 minutes
-            3 => 30,     // Fourth retry: 30 minutes
-            default => 60, // Fifth+ retry: 1 hour
-        };
+        $delayMinutes = self::BACKOFF_MINUTES[min($this->getRetryCount(), count(self::BACKOFF_MINUTES) - 1)];
 
-        $nextRetry = strtotime("+{$delayMinutes} minutes");
-        return date('Y-m-d H:i:s', $nextRetry);
+        return date('Y-m-d H:i:s', strtotime('+' . $delayMinutes . ' minutes'));
     }
 
     /**
@@ -330,16 +336,17 @@ class WebhookLog extends AbstractModel
      * @param string|null $responseBody
      * @return $this
      */
-    public function markAsFailed(string $errorMessage, ?int $statusCode = null, ?string $responseBody = null): self
-    {
+    public function markAsFailed(
+        string $errorMessage,
+        ?int $statusCode = null,
+        ?string $responseBody = null
+    ): self {
         $this->setHttpStatusCode($statusCode)
              ->setResponseBody($responseBody)
              ->setErrorMessage($errorMessage);
 
-        // Schedule the next retry from the number of attempts that have ALREADY
-        // failed (the pre-increment retry_count), so the first retry waits 1 min
-        // (match(0)), the second 5 min, and so on, matching the documented
-        // backoff. Computing this after incrementing would skip the 1-minute tier.
+        // Computed before incrementing the count so the first retry gets the
+        // first backoff value.
         $nextRetryAt = $this->calculateNextRetryTime();
 
         $this->incrementRetryCount();
@@ -354,5 +361,18 @@ class WebhookLog extends AbstractModel
 
         return $this;
     }
-}
 
+    /**
+     * Put the event back in the queue (admin "Requeue" action)
+     *
+     * @param int $maxRetries
+     * @return $this
+     */
+    public function requeue(int $maxRetries): self
+    {
+        return $this->setStatus(self::STATUS_PENDING)
+                    ->setRetryCount(0)
+                    ->setNextRetryAt(null)
+                    ->setMaxRetries($maxRetries);
+    }
+}

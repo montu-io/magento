@@ -3,30 +3,38 @@
 /**
  * Montu Affiliate Tracking Extension - Events Configuration
  *
+ * The order events are recorded from commit-time events only: they run once
+ * the outermost transaction committed, so nothing the module does can roll
+ * back or slow down the order itself. Magento fires them for every way an
+ * order changes through Magento (checkout, admin, REST, cron), including the
+ * core services that commit directly on the connection (ExecuteCommitCallbacks).
+ *
+ * The cookie is read in etc/frontend/events.xml and etc/webapi_rest/events.xml
+ * only, so an admin-created order never picks up the admin's own cookie.
+ *
  * @category  Montu
  * @package   Montu_Affiliate
  */
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
-    
-    <!-- Save affiliate code from cookie to quote -->
-    <event name="checkout_cart_save_after">
-        <observer name="montu_affiliate_save_to_quote" 
-                  instance="Montu\Affiliate\Observer\SaveAffiliateToQuote"/>
-    </event>
 
-    <!-- Copy affiliate code from quote to order (after order is saved) -->
+    <!-- Link the quote's tracking row to the order -->
     <event name="sales_model_service_quote_submit_success">
-        <observer name="montu_affiliate_copy_to_order" 
+        <observer name="montu_affiliate_copy_to_order"
                   instance="Montu\Affiliate\Observer\CopyAffiliateToOrder"/>
     </event>
 
-    <!-- Send webhook after checkout completes (after CopyAffiliateToOrder runs) -->
-    <event name="checkout_submit_all_after">
-        <observer name="montu_affiliate_send_webhook" 
-                  instance="Montu\Affiliate\Observer\SendOrderWebhook"/>
+    <!-- order.placed and order.updated -->
+    <event name="sales_order_save_commit_after">
+        <observer name="montu_affiliate_record_order"
+                  instance="Montu\Affiliate\Observer\RecordOrderEvents"/>
+    </event>
+
+    <!-- creditmemo.created -->
+    <event name="sales_order_creditmemo_save_commit_after">
+        <observer name="montu_affiliate_record_creditmemo"
+                  instance="Montu\Affiliate\Observer\RecordOrderEvents"/>
     </event>
 
 </config>
-

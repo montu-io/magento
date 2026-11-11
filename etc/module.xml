@@ -18,6 +18,7 @@
             <module name="Magento_CatalogInventory"/>
             <module name="Magento_ConfigurableProduct"/>
             <module name="Magento_Swatches"/>
+            <module name="Magento_Customer"/>
         </sequence>
     </module>
 </config>

@@ -35,18 +35,5 @@ class Collection extends AbstractCollection
     {
         $this->_init(WebhookLog::class, WebhookLogResource::class);
     }
-
-    /**
-     * Filter by pending retries (failed status with next_retry_at in the past)
-     *
-     * @return $this
-     */
-    public function addPendingRetryFilter(): self
-    {
-        $this->addFieldToFilter('status', WebhookLog::STATUS_FAILED)
-             ->addFieldToFilter('next_retry_at', ['lteq' => date('Y-m-d H:i:s')]);
-        
-        return $this;
-    }
 }
 

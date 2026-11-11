@@ -25,6 +25,25 @@
                 <send_on_order_placed>1</send_on_order_placed>
                 <timeout>30</timeout>
             </webhook>
+            <events>
+                <send_order_updated>1</send_order_updated>
+                <send_creditmemo_created>1</send_creditmemo_created>
+            </events>
+            <filters>
+                <orders_to_send>affiliate_code_or_coupon</orders_to_send>
+                <coupon_prefixes></coupon_prefixes>
+                <excluded_customer_groups></excluded_customer_groups>
+            </filters>
+            <data>
+                <customer_data>hashed</customer_data>
+            </data>
+            <queue>
+                <cron_expr>*/5 * * * *</cron_expr>
+                <batch_size>50</batch_size>
+                <max_retries>5</max_retries>
+                <retention_days>30</retention_days>
+                <log_level>warning</log_level>
+            </queue>
             <storefront>
                 <enabled>0</enabled>
                 <route_path>storefront</route_path>
@@ -32,6 +51,8 @@
                 <products_endpoint></products_endpoint>
                 <products_limit>12</products_limit>
                 <locale>en_US</locale>
+                <fallback>empty</fallback>
+                <hide_out_of_stock>1</hide_out_of_stock>
             </storefront>
             <appearance>
                 <theme_mode>auto</theme_mode>

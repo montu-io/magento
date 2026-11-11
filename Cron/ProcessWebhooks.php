@@ -2,8 +2,16 @@
 /**
  * Montu Affiliate Tracking Extension - Process Webhooks Cron
  *
- * Simple cron job that processes pending and failed webhooks.
- * Runs every minute by default.
+ * Delivers the queued events. Runs in the "montu_affiliate" cron group on the
+ * schedule from Stores > Configuration > Montu > Delivery Queue & Logging
+ * (default every 5 minutes). Per run it:
+ *   1. recovers events stuck in "processing";
+ *   2. delivers a batch, oldest first, never sending an event while an earlier
+ *      event of the same order is not delivered (per-order FIFO); only rows of
+ *      store views with the module and webhook enabled are considered;
+ *   3. deletes delivered events past the retention period.
+ *
+ * Runs never overlap: Magento's cron runner already locks each job.
  *
  * @category  Montu
  * @package   Montu_Affiliate
@@ -13,7 +21,7 @@ declare(strict_types=1);
 
 namespace Montu\Affiliate\Cron;
 
-use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Store\Model\StoreManagerInterface;
 use Montu\Affiliate\Model\Config;
 use Montu\Affiliate\Model\WebhookLog;
 use Montu\Affiliate\Model\WebhookLogRepository;
@@ -22,72 +30,54 @@ use Psr\Log\LoggerInterface;
 
 class ProcessWebhooks
 {
+    private const RESULT_SENT = 'sent';
+    private const RESULT_FAILED = 'failed';
+
     /**
-     * Max webhooks to process per cron run
+     * An event left in "processing" longer than this (a run that died) is
+     * counted as a failed attempt
      */
-    private const MAX_WEBHOOKS_PER_RUN = 50;
+    private const PROCESSING_TIMEOUT_MINUTES = 15;
 
     private Config $config;
     private WebhookLogRepository $webhookLogRepository;
     private WebhookService $webhookService;
-    private OrderRepositoryInterface $orderRepository;
+    private StoreManagerInterface $storeManager;
     private LoggerInterface $logger;
 
+    /**
+     * @param Config $config
+     * @param WebhookLogRepository $webhookLogRepository
+     * @param WebhookService $webhookService
+     * @param StoreManagerInterface $storeManager
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         Config $config,
         WebhookLogRepository $webhookLogRepository,
         WebhookService $webhookService,
-        OrderRepositoryInterface $orderRepository,
+        StoreManagerInterface $storeManager,
         LoggerInterface $logger
     ) {
         $this->config = $config;
         $this->webhookLogRepository = $webhookLogRepository;
         $this->webhookService = $webhookService;
-        $this->orderRepository = $orderRepository;
+        $this->storeManager = $storeManager;
         $this->logger = $logger;
     }
 
     /**
-     * Execute cron job - process pending and retry-ready webhooks
+     * Execute cron job
      *
      * @return void
      */
     public function execute(): void
     {
-        if (!$this->config->isEnabled() || !$this->config->isWebhookEnabled()) {
-            return;
-        }
-
         try {
-            // Get pending webhooks
-            $pendingWebhooks = $this->webhookLogRepository->getPendingWebhooks(self::MAX_WEBHOOKS_PER_RUN);
-            $count = count($pendingWebhooks);
-
-            if ($count === 0) {
-                $this->logger->debug('[Montu Affiliate] No pending webhooks to process');
-                return;
-            }
-
-            $this->logger->info('[Montu Affiliate] Processing webhooks', ['count' => $count]);
-
-            $success = 0;
-            $failed = 0;
-
-            foreach ($pendingWebhooks as $webhookLog) {
-                $result = $this->processWebhook($webhookLog);
-                if ($result) {
-                    $success++;
-                } else {
-                    $failed++;
-                }
-            }
-
-            $this->logger->info(
-                '[Montu Affiliate] Webhook processing completed',
-                ['success' => $success, 'failed' => $failed]
-            );
-
-        } catch (\Exception $e) {
+            $this->recoverStuck();
+            $this->deliverBatch();
+            $this->purgeDelivered();
+        } catch (\Throwable $e) {
             $this->logger->error(
                 '[Montu Affiliate] Cron error: ' . $e->getMessage(),
                 ['exception' => $e]
@@ -96,79 +86,158 @@ class ProcessWebhooks
     }
 
     /**
-     * Process a single webhook
+     * Count events left in "processing" by a run that died as a failed attempt
      *
-     * @param WebhookLog $webhookLog
-     * @return bool
+     * @return void
      */
-    private function processWebhook(WebhookLog $webhookLog): bool
+    private function recoverStuck(): void
     {
-        $orderId = $webhookLog->getOrderId();
-
-        try {
-            // Mark as processing
-            $webhookLog->markAsProcessing();
-            $this->webhookLogRepository->save($webhookLog);
-
-            // Load order
-            try {
-                $order = $this->orderRepository->get($orderId);
-            } catch (\Exception $e) {
-                $webhookLog->markAsFailed('Order not found: ' . $e->getMessage());
-                $this->webhookLogRepository->save($webhookLog);
-                $this->logger->error('[Montu Affiliate] Order not found', ['order_id' => $orderId]);
-                return false;
-            }
-
-            // Send webhook
-            $result = $this->webhookService->sendOrderWebhookWithResponse(
-                $order,
-                $webhookLog->getAffiliateCode()
+        foreach ($this->webhookLogRepository->getStuck(self::PROCESSING_TIMEOUT_MINUTES) as $log) {
+            $log->markAsFailed(
+                'Timed out while processing (the delivery run did not finish)'
             );
-
-            if ($result['success']) {
-                $webhookLog->markAsSuccess(
-                    $result['status_code'],
-                    $result['response_body']
-                );
-                $this->webhookLogRepository->save($webhookLog);
-
-                $this->logger->info(
-                    '[Montu Affiliate] Webhook sent successfully',
-                    ['order_id' => $orderId, 'status_code' => $result['status_code']]
-                );
-                return true;
-            } else {
-                $webhookLog->markAsFailed(
-                    $result['error_message'],
-                    $result['status_code'],
-                    $result['response_body']
-                );
-                $this->webhookLogRepository->save($webhookLog);
-
-                $this->logger->warning(
-                    '[Montu Affiliate] Webhook failed',
-                    [
-                        'order_id' => $orderId,
-                        'error' => $result['error_message'],
-                        'retry_count' => $webhookLog->getRetryCount(),
-                        'can_retry' => $webhookLog->canRetry(),
-                        'next_retry' => $webhookLog->getNextRetryAt()
-                    ]
-                );
-                return false;
-            }
-
-        } catch (\Exception $e) {
-            $webhookLog->markAsFailed('Exception: ' . $e->getMessage());
-            $this->webhookLogRepository->save($webhookLog);
-
-            $this->logger->error(
-                '[Montu Affiliate] Webhook exception',
-                ['order_id' => $orderId, 'exception' => $e]
+            $this->webhookLogRepository->save($log);
+            $this->logger->warning(
+                '[Montu Affiliate] Recovered an event stuck in processing',
+                ['event_id' => $log->getEventId(), 'status' => $log->getStatus()]
             );
-            return false;
         }
     }
-}
 
+    /**
+     * Deliver up to the batch size. Delivering an event can free the next event
+     * of the same order, so keep asking for ready events until none is left.
+     *
+     * @return void
+     */
+    private function deliverBatch(): void
+    {
+        $limit = $this->config->getBatchSize();
+        $storeIds = $this->getEnabledStoreIds();
+        $handled = [];
+        $sent = 0;
+        $failed = 0;
+
+        while (count($handled) < $limit) {
+            $batch = $this->webhookLogRepository->getReadyBatch(
+                $limit - count($handled),
+                $storeIds,
+                $handled
+            );
+            if ($batch === []) {
+                break;
+            }
+
+            $progressed = false;
+            foreach ($batch as $log) {
+                $handled[] = (int) $log->getEntityId();
+                $result = $this->process($log);
+                $sent += $result === self::RESULT_SENT ? 1 : 0;
+                $failed += $result === self::RESULT_FAILED ? 1 : 0;
+                $progressed = $progressed || $result === self::RESULT_SENT;
+            }
+
+            // Only a delivery can unblock more events; otherwise stop.
+            if (!$progressed) {
+                break;
+            }
+        }
+
+        if ($handled !== []) {
+            $this->logger->info('[Montu Affiliate] Delivery run completed', ['sent' => $sent, 'failed' => $failed]);
+        }
+    }
+
+    /**
+     * Store views with the module and the webhook enabled
+     *
+     * @return int[]
+     */
+    private function getEnabledStoreIds(): array
+    {
+        $ids = [];
+        foreach ($this->storeManager->getStores() as $store) {
+            $storeId = (int) $store->getId();
+            if ($this->config->isEnabled($storeId) && $this->config->isWebhookEnabled($storeId)) {
+                $ids[] = $storeId;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Delete delivered events past the retention period
+     *
+     * @return void
+     */
+    private function purgeDelivered(): void
+    {
+        $days = $this->config->getRetentionDays();
+        if ($days > 0) {
+            $deleted = $this->webhookLogRepository->purgeDelivered($days);
+            if ($deleted > 0) {
+                $this->logger->info('[Montu Affiliate] Deleted delivered events', ['count' => $deleted]);
+            }
+        }
+    }
+
+    /**
+     * Deliver a single event
+     *
+     * @param WebhookLog $log
+     * @return string One of the RESULT_* constants
+     */
+    private function process(WebhookLog $log): string
+    {
+        $payload = $log->getPayload();
+        if ($payload === null) {
+            // Queued by module v1, which stored no payload: nothing to send.
+            $log->setStatus(WebhookLog::STATUS_MAX_RETRIES)
+                ->setErrorMessage('Recorded by module v1 without a payload; not sent')
+                ->setNextRetryAt(null);
+            $this->webhookLogRepository->save($log);
+
+            return self::RESULT_FAILED;
+        }
+
+        try {
+            $log->markAsProcessing();
+            $this->webhookLogRepository->save($log);
+
+            $result = $this->webhookService->send($log, $payload);
+
+            if ($result['success']) {
+                $log->markAsSuccess((int) $result['status_code'], $result['response_body']);
+                $this->webhookLogRepository->save($log);
+                return self::RESULT_SENT;
+            }
+
+            $log->markAsFailed(
+                $result['error_message'],
+                $result['status_code'],
+                $result['response_body']
+            );
+            $this->webhookLogRepository->save($log);
+            $this->logger->warning(
+                '[Montu Affiliate] Webhook failed',
+                [
+                    'event_id' => $log->getEventId(),
+                    'error' => $result['error_message'],
+                    'retry_count' => $log->getRetryCount(),
+                    'can_retry' => $log->canRetry(),
+                    'next_retry' => $log->getNextRetryAt()
+                ]
+            );
+        } catch (\Throwable $e) {
+            $log->markAsFailed('Exception: ' . $e->getMessage());
+            $this->webhookLogRepository->save($log);
+            $this->logger->error(
+                '[Montu Affiliate] Webhook exception',
+                ['order_id' => $log->getOrderId(), 'exception' => $e]
+            );
+        }
+
+        return self::RESULT_FAILED;
+    }
+}

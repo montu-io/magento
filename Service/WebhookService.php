@@ -2,6 +2,10 @@
 /**
  * Montu Affiliate Tracking Extension - Webhook Service
  *
+ * Transport only: takes the payload snapshot recorded with an event, adds the
+ * send-time timestamp, signs it and POSTs it. What goes into the payload is
+ * decided when the event is recorded (Service\EventRecorder).
+ *
  * @category  Montu
  * @package   Montu_Affiliate
  */
@@ -10,59 +14,79 @@ declare(strict_types=1);
 
 namespace Montu\Affiliate\Service;
 
-use Magento\Framework\HTTP\Client\Curl;
-use Magento\Framework\Serialize\Serializer\Json;
-use Magento\Sales\Model\Order;
+use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Store\Model\StoreManagerInterface;
 use Montu\Affiliate\Model\Config;
+use Montu\Affiliate\Model\ModuleVersion;
+use Montu\Affiliate\Model\WebhookLog;
 use Psr\Log\LoggerInterface;
 
 class WebhookService
 {
-    private const WEBHOOK_VERSION = '1.0';
-    private const EVENT_ORDER_PLACED = 'order.placed';
+    public const WEBHOOK_VERSION = '2.0';
 
+    /**
+     * Seconds to open the connection to Montu
+     */
+    private const CONNECT_TIMEOUT_SECONDS = 10;
+
+    /**
+     * @var Config
+     */
     private Config $config;
-    private Curl $curl;
-    private Json $json;
+
+    /**
+     * @var CurlFactory
+     */
+    private CurlFactory $curlFactory;
+
+    /**
+     * @var ModuleVersion
+     */
+    private ModuleVersion $moduleVersion;
+
+    /**
+     * @var StoreManagerInterface
+     */
     private StoreManagerInterface $storeManager;
+
+    /**
+     * @var LoggerInterface
+     */
     private LoggerInterface $logger;
 
+    /**
+     * @param Config $config
+     * @param CurlFactory $curlFactory
+     * @param ModuleVersion $moduleVersion
+     * @param StoreManagerInterface $storeManager
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         Config $config,
-        Curl $curl,
-        Json $json,
+        CurlFactory $curlFactory,
+        ModuleVersion $moduleVersion,
         StoreManagerInterface $storeManager,
         LoggerInterface $logger
     ) {
         $this->config = $config;
-        $this->curl = $curl;
-        $this->json = $json;
+        $this->curlFactory = $curlFactory;
+        $this->moduleVersion = $moduleVersion;
         $this->storeManager = $storeManager;
         $this->logger = $logger;
     }
 
     /**
-     * Send order webhook to configured endpoint (simple boolean response)
+     * Deliver one recorded event
      *
-     * @param Order $order
-     * @param string $affiliateCode
-     * @return bool
-     */
-    public function sendOrderWebhook(Order $order, string $affiliateCode): bool
-    {
-        $result = $this->sendOrderWebhookWithResponse($order, $affiliateCode);
-        return $result['success'];
-    }
-
-    /**
-     * Send order webhook and return detailed response
+     * Settings (endpoint, key, secret, timeouts) and the X-Montu-Store-*
+     * headers come from the store view of the order the event belongs to.
      *
-     * @param Order $order
-     * @param string $affiliateCode
+     * @param WebhookLog $log
+     * @param string $payload JSON snapshot stored with the event
      * @return array{success: bool, status_code: int|null, response_body: string|null, error_message: string}
      */
-    public function sendOrderWebhookWithResponse(Order $order, string $affiliateCode): array
+    public function send(WebhookLog $log, string $payload): array
     {
         $result = [
             'success' => false,
@@ -71,14 +95,12 @@ class WebhookService
             'error_message' => ''
         ];
 
-        // Read the order's own store scope: the cron runs in the default store,
-        // so without a store id per-store-view endpoint/key values were ignored.
-        $storeId = (int) $order->getStoreId();
+        $storeId = $log->getStoreId();
         $endpointUrl = $this->config->getWebhookEndpointUrl($storeId);
 
         if (empty($endpointUrl)) {
             $result['error_message'] = 'Webhook endpoint URL is not configured';
-            $this->logger->warning('[Montu Affiliate] ' . $result['error_message']);
+            $this->logger->warning('[Montu Affiliate] ' . $result['error_message'], ['store_id' => $storeId]);
             return $result;
         }
 
@@ -87,145 +109,46 @@ class WebhookService
 
         if ($keyId === '' || $signingSecret === '') {
             $result['error_message'] = 'Webhook signing key is not configured';
-            $this->logger->warning('[Montu Affiliate] ' . $result['error_message']);
+            $this->logger->warning('[Montu Affiliate] ' . $result['error_message'], ['store_id' => $storeId]);
             return $result;
         }
 
-        $payload = $this->buildOrderPayload($order, $affiliateCode);
-        $jsonPayload = $this->json->serialize($payload);
-        $headers = $this->buildHeaders($jsonPayload, $keyId, $signingSecret);
+        // The timestamp is set on every attempt (the backend rejects bodies older
+        // than 5 minutes); everything else is the snapshot taken when recorded.
+        $body = '{"timestamp":' . json_encode(gmdate('c')) . ',' . substr(ltrim($payload), 1);
 
-        return $this->sendWebhook($endpointUrl, $jsonPayload, $headers);
-    }
-
-    /**
-     * Build order payload for webhook
-     *
-     * @param Order $order
-     * @param string $affiliateCode
-     * @return array
-     */
-    private function buildOrderPayload(Order $order, string $affiliateCode): array
-    {
-        $store = $order->getStore();
-
-        return [
-            'webhook_version' => self::WEBHOOK_VERSION,
-            'event' => self::EVENT_ORDER_PLACED,
-            'timestamp' => date('c'),
-            'store' => [
-                'code' => $store->getCode(),
-                'name' => $store->getName(),
-                'base_url' => $store->getBaseUrl(),
-                'currency' => $order->getOrderCurrencyCode(),
-            ],
-            'order' => [
-                'id' => $order->getId(),
-                'increment_id' => $order->getIncrementId(),
-                'status' => $order->getStatus(),
-                'state' => $order->getState(),
-                'created_at' => $order->getCreatedAt(),
-                'grand_total' => (float) $order->getGrandTotal(),
-                'subtotal' => (float) $order->getSubtotal(),
-                'tax_amount' => (float) $order->getTaxAmount(),
-                'shipping_amount' => (float) $order->getShippingAmount(),
-                'discount_amount' => (float) $order->getDiscountAmount(),
-                'total_qty_ordered' => (float) $order->getTotalQtyOrdered(),
-                'currency_code' => $order->getOrderCurrencyCode(),
-                'payment_method' => $order->getPayment() ? $order->getPayment()->getMethod() : null,
-                'shipping_method' => $order->getShippingMethod(),
-                'coupon_code' => $order->getCouponCode(),
-            ],
-            'affiliate' => [
-                'code' => $affiliateCode,
-            ],
-            'customer' => [
-                'id' => $order->getCustomerId(),
-                'email' => $order->getCustomerEmail(),
-                'firstname' => $order->getCustomerFirstname(),
-                'lastname' => $order->getCustomerLastname(),
-                'is_guest' => (bool) $order->getCustomerIsGuest(),
-            ],
-            'items' => $this->buildItemsPayload($order),
-            'billing_address' => $this->buildAddressPayload($order->getBillingAddress()),
-            'shipping_address' => $this->buildAddressPayload($order->getShippingAddress()),
-        ];
-    }
-
-    /**
-     * Build items payload
-     *
-     * @param Order $order
-     * @return array
-     */
-    private function buildItemsPayload(Order $order): array
-    {
-        $items = [];
-
-        foreach ($order->getAllVisibleItems() as $item) {
-            $items[] = [
-                'sku' => $item->getSku(),
-                'name' => $item->getName(),
-                'qty' => (float) $item->getQtyOrdered(),
-                'price' => (float) $item->getPrice(),
-                'row_total' => (float) $item->getRowTotal(),
-                'tax_amount' => (float) $item->getTaxAmount(),
-                'discount_amount' => (float) $item->getDiscountAmount(),
-                'product_type' => $item->getProductType(),
-            ];
-        }
-
-        return $items;
-    }
-
-    /**
-     * Build address payload
-     *
-     * @param \Magento\Sales\Model\Order\Address|null $address
-     * @return array|null
-     */
-    private function buildAddressPayload($address): ?array
-    {
-        if (!$address) {
-            return null;
-        }
-
-        return [
-            'firstname' => $address->getFirstname(),
-            'lastname' => $address->getLastname(),
-            'street' => implode(', ', $address->getStreet() ?: []),
-            'city' => $address->getCity(),
-            'region' => $address->getRegion(),
-            'postcode' => $address->getPostcode(),
-            'country_id' => $address->getCountryId(),
-            'telephone' => $address->getTelephone(),
-        ];
+        return $this->post(
+            $endpointUrl,
+            $body,
+            $this->buildHeaders($log, $body, $keyId, $signingSecret),
+            $storeId
+        );
     }
 
     /**
      * Build headers for webhook request
      *
-     * @param string $jsonPayload Serialized JSON body to sign
+     * @param WebhookLog $log
+     * @param string $body Serialized JSON body to sign
      * @param string $keyId Public key id, sent as X-Montu-Key-Id
      * @param string $signingSecret Secret used to sign the body; never sent
-     * @return array
+     * @return array<string, string>
      */
-    private function buildHeaders(string $jsonPayload, string $keyId, string $signingSecret): array
+    private function buildHeaders(WebhookLog $log, string $body, string $keyId, string $signingSecret): array
     {
-        $timestamp = (string) time();
-
         $headers = [
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
             'X-Montu-Webhook-Version' => self::WEBHOOK_VERSION,
-            'X-Montu-Event' => self::EVENT_ORDER_PLACED,
-            'X-Montu-Timestamp' => $timestamp,
+            'X-Montu-Event' => $log->getEventType(),
+            'X-Montu-Event-Id' => $log->getEventId(),
+            'X-Montu-Module-Version' => $this->moduleVersion->get(),
+            'X-Montu-Timestamp' => (string) time(),
             'X-Montu-Key-Id' => $keyId,
         ];
 
-        // Add store domain for identification
         try {
-            $store = $this->storeManager->getStore();
+            $store = $this->storeManager->getStore($log->getStoreId());
             $headers['X-Montu-Store-Domain'] = $store->getBaseUrl();
             $headers['X-Montu-Store-Code'] = $store->getCode();
         } catch (\Exception $e) {
@@ -233,32 +156,21 @@ class WebhookService
         }
 
         // Sign the full request body for authentication and payload integrity
-        $headers['X-Montu-Signature'] = $this->generateSignature($signingSecret, $jsonPayload);
+        $headers['X-Montu-Signature'] = hash_hmac('sha256', $body, $signingSecret);
 
         return $headers;
-    }
-
-    /**
-     * Generate HMAC-SHA256 signature over the request body
-     *
-     * @param string $signingSecret
-     * @param string $payload The raw JSON body
-     * @return string
-     */
-    private function generateSignature(string $signingSecret, string $payload): string
-    {
-        return hash_hmac('sha256', $payload, $signingSecret);
     }
 
     /**
      * Send webhook request with detailed response
      *
      * @param string $url
-     * @param string $jsonPayload Pre-serialized JSON body
-     * @param array $headers
+     * @param string $body Pre-serialized JSON body
+     * @param array<string, string> $headers
+     * @param int $storeId
      * @return array{success: bool, status_code: int|null, response_body: string|null, error_message: string}
      */
-    private function sendWebhook(string $url, string $jsonPayload, array $headers): array
+    private function post(string $url, string $body, array $headers, int $storeId): array
     {
         $result = [
             'success' => false,
@@ -268,35 +180,26 @@ class WebhookService
         ];
 
         try {
-            $timeout = $this->config->getWebhookTimeout();
-
             // Create new Curl instance for each request to avoid state issues
-            $curl = new Curl();
+            $curl = $this->curlFactory->create();
 
-            // Configure curl
-            $curl->setTimeout($timeout);
-            $curl->setOption(CURLOPT_CONNECTTIMEOUT, 10);
+            $curl->setTimeout($this->config->getWebhookTimeout($storeId));
+            $curl->setOption(CURLOPT_CONNECTTIMEOUT, self::CONNECT_TIMEOUT_SECONDS);
             $curl->setOption(CURLOPT_RETURNTRANSFER, true);
             $curl->setOption(CURLOPT_SSL_VERIFYPEER, true);
 
-            // Set headers
             foreach ($headers as $name => $value) {
                 $curl->addHeader($name, $value);
             }
 
-            // Send POST request
-            $curl->post($url, $jsonPayload);
+            $curl->post($url, $body);
 
             $result['status_code'] = $curl->getStatus();
             $result['response_body'] = $curl->getBody();
 
-            // Log the request
-            $this->logger->info(
+            $this->logger->debug(
                 '[Montu Affiliate] Webhook sent',
-                [
-                    'url' => $url,
-                    'status_code' => $result['status_code'],
-                ]
+                ['url' => $url, 'status_code' => $result['status_code']]
             );
 
             // Check for successful response (2xx status codes)
@@ -318,10 +221,9 @@ class WebhookService
                     ]
                 );
             }
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $result['error_message'] = 'Exception: ' . $e->getMessage();
-            
+
             $this->logger->error(
                 '[Montu Affiliate] Webhook exception: ' . $e->getMessage(),
                 ['exception' => $e]

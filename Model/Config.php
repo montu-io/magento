@@ -13,7 +13,6 @@ namespace Montu\Affiliate\Model;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Store\Model\ScopeInterface;
-use Magento\Store\Model\StoreManagerInterface;
 
 class Config
 {
@@ -42,6 +41,32 @@ class Config
     private const XML_PATH_APPEARANCE_SURFACE_COLOR = 'montu_affiliate/appearance/surface_color';
     private const XML_PATH_APPEARANCE_CARD_RADIUS = 'montu_affiliate/appearance/card_radius';
     private const XML_PATH_APPEARANCE_FONT_FAMILY = 'montu_affiliate/appearance/font_family';
+    private const XML_PATH_EVENTS_SEND_ORDER_UPDATED = 'montu_affiliate/events/send_order_updated';
+    private const XML_PATH_EVENTS_SEND_CREDITMEMO_CREATED = 'montu_affiliate/events/send_creditmemo_created';
+    private const XML_PATH_FILTERS_ORDERS_TO_SEND = 'montu_affiliate/filters/orders_to_send';
+    private const XML_PATH_FILTERS_COUPON_PREFIXES = 'montu_affiliate/filters/coupon_prefixes';
+    private const XML_PATH_FILTERS_EXCLUDED_GROUPS = 'montu_affiliate/filters/excluded_customer_groups';
+    private const XML_PATH_DATA_CUSTOMER_DATA = 'montu_affiliate/data/customer_data';
+    private const XML_PATH_QUEUE_BATCH_SIZE = 'montu_affiliate/queue/batch_size';
+    private const XML_PATH_QUEUE_MAX_RETRIES = 'montu_affiliate/queue/max_retries';
+    private const XML_PATH_QUEUE_RETENTION_DAYS = 'montu_affiliate/queue/retention_days';
+    private const XML_PATH_QUEUE_LOG_LEVEL = 'montu_affiliate/queue/log_level';
+    private const XML_PATH_STOREFRONT_FALLBACK = 'montu_affiliate/storefront/fallback';
+    private const XML_PATH_STOREFRONT_HIDE_OUT_OF_STOCK = 'montu_affiliate/storefront/hide_out_of_stock';
+
+    public const ORDERS_AFFILIATE_CODE = 'affiliate_code';
+    public const ORDERS_AFFILIATE_CODE_OR_COUPON = 'affiliate_code_or_coupon';
+    public const ORDERS_AFFILIATE_CODE_OR_COUPON_PREFIX = 'affiliate_code_or_coupon_prefix';
+    public const ORDERS_ALL = 'all';
+
+    public const CUSTOMER_DATA_HASHED = 'hashed';
+    public const CUSTOMER_DATA_NONE = 'none';
+    public const CUSTOMER_DATA_FULL = 'full';
+
+    public const FALLBACK_EMPTY = 'empty';
+    public const FALLBACK_REDIRECT_HOME = 'redirect_home';
+
+    public const LOG_LEVELS = ['debug', 'info', 'warning', 'error'];
 
     /**
      * @var ScopeConfigInterface
@@ -54,23 +79,15 @@ class Config
     private EncryptorInterface $encryptor;
 
     /**
-     * @var StoreManagerInterface
-     */
-    private StoreManagerInterface $storeManager;
-
-    /**
      * @param ScopeConfigInterface $scopeConfig
      * @param EncryptorInterface $encryptor
-     * @param StoreManagerInterface $storeManager
      */
     public function __construct(
         ScopeConfigInterface $scopeConfig,
-        EncryptorInterface $encryptor,
-        StoreManagerInterface $storeManager
+        EncryptorInterface $encryptor
     ) {
         $this->scopeConfig = $scopeConfig;
         $this->encryptor = $encryptor;
-        $this->storeManager = $storeManager;
     }
 
     /**
@@ -330,34 +347,6 @@ class Config
     }
 
     /**
-     * Get current store base URL
-     *
-     * @return string
-     */
-    public function getStoreBaseUrl(): string
-    {
-        try {
-            return $this->storeManager->getStore()->getBaseUrl();
-        } catch (\Exception $e) {
-            return '';
-        }
-    }
-
-    /**
-     * Get current store code
-     *
-     * @return string
-     */
-    public function getStoreCode(): string
-    {
-        try {
-            return $this->storeManager->getStore()->getCode();
-        } catch (\Exception $e) {
-            return '';
-        }
-    }
-
-    /**
      * Storefront white-label theme mode: "auto", "manual" or "off".
      *
      * @param int|null $storeId
@@ -491,5 +480,232 @@ class Config
             $storeId
         ));
     }
-}
 
+    /**
+     * Check if order.updated events are enabled
+     *
+     * @param int|null $storeId
+     * @return bool
+     */
+    public function shouldSendOrderUpdated(?int $storeId = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_EVENTS_SEND_ORDER_UPDATED,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Check if creditmemo.created events are enabled
+     *
+     * @param int|null $storeId
+     * @return bool
+     */
+    public function shouldSendCreditmemoCreated(?int $storeId = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_EVENTS_SEND_CREDITMEMO_CREATED,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Check if an event type is enabled (the per-event "send" switch)
+     *
+     * @param string $eventType One of the EventType constants
+     * @param int|null $storeId
+     * @return bool
+     */
+    public function isEventTypeEnabled(string $eventType, ?int $storeId = null): bool
+    {
+        return match ($eventType) {
+            EventType::ORDER_PLACED => $this->shouldSendOnOrderPlaced($storeId),
+            EventType::ORDER_UPDATED => $this->shouldSendOrderUpdated($storeId),
+            EventType::CREDITMEMO_CREATED => $this->shouldSendCreditmemoCreated($storeId),
+            default => false,
+        };
+    }
+
+    /**
+     * Which orders qualify for order.placed (see the ORDERS_* constants)
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getOrdersToSendMode(?int $storeId = null): string
+    {
+        $mode = (string) $this->scopeConfig->getValue(
+            self::XML_PATH_FILTERS_ORDERS_TO_SEND,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+
+        return in_array($mode, [
+            self::ORDERS_AFFILIATE_CODE,
+            self::ORDERS_AFFILIATE_CODE_OR_COUPON_PREFIX,
+            self::ORDERS_ALL,
+        ], true) ? $mode : self::ORDERS_AFFILIATE_CODE_OR_COUPON;
+    }
+
+    /**
+     * Coupon prefixes for the "prefix" mode, lower-cased
+     *
+     * @param int|null $storeId
+     * @return string[]
+     */
+    public function getCouponPrefixes(?int $storeId = null): array
+    {
+        return array_map('strtolower', $this->splitList((string) $this->scopeConfig->getValue(
+            self::XML_PATH_FILTERS_COUPON_PREFIXES,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        )));
+    }
+
+    /**
+     * Customer group ids whose orders are never sent
+     *
+     * @param int|null $storeId
+     * @return int[]
+     */
+    public function getExcludedCustomerGroups(?int $storeId = null): array
+    {
+        return array_map('intval', $this->splitList((string) $this->scopeConfig->getValue(
+            self::XML_PATH_FILTERS_EXCLUDED_GROUPS,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        )));
+    }
+
+    /**
+     * Buyer data mode: "hashed" (default), "none" or "full"
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getCustomerDataMode(?int $storeId = null): string
+    {
+        $mode = (string) $this->scopeConfig->getValue(
+            self::XML_PATH_DATA_CUSTOMER_DATA,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+
+        return in_array($mode, [self::CUSTOMER_DATA_NONE, self::CUSTOMER_DATA_FULL], true)
+            ? $mode
+            : self::CUSTOMER_DATA_HASHED;
+    }
+
+    /**
+     * Max events delivered per cron run
+     *
+     * @return int
+     */
+    public function getBatchSize(): int
+    {
+        return $this->positiveInt(self::XML_PATH_QUEUE_BATCH_SIZE, 50);
+    }
+
+    /**
+     * Delivery attempts per event, stored on the row when it is queued
+     *
+     * @param int|null $storeId
+     * @return int
+     */
+    public function getMaxRetries(?int $storeId = null): int
+    {
+        return $this->positiveInt(self::XML_PATH_QUEUE_MAX_RETRIES, 5, $storeId);
+    }
+
+    /**
+     * Days to keep delivered events (0 = keep forever)
+     *
+     * @return int
+     */
+    public function getRetentionDays(): int
+    {
+        return max(0, (int) $this->scopeConfig->getValue(
+            self::XML_PATH_QUEUE_RETENTION_DAYS,
+            ScopeInterface::SCOPE_STORE
+        ));
+    }
+
+    /**
+     * Minimum level written to var/log/montu_affiliate.log
+     *
+     * @return string One of LOG_LEVELS
+     */
+    public function getLogLevel(): string
+    {
+        $level = (string) $this->scopeConfig->getValue(
+            self::XML_PATH_QUEUE_LOG_LEVEL,
+            ScopeInterface::SCOPE_STORE
+        );
+
+        return in_array($level, self::LOG_LEVELS, true) ? $level : 'warning';
+    }
+
+    /**
+     * What the storefront page does when Montu returns nothing: "empty" or
+     * "redirect_home"
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getStorefrontFallback(?int $storeId = null): string
+    {
+        $fallback = (string) $this->scopeConfig->getValue(
+            self::XML_PATH_STOREFRONT_FALLBACK,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+
+        return $fallback === self::FALLBACK_REDIRECT_HOME ? $fallback : self::FALLBACK_EMPTY;
+    }
+
+    /**
+     * Check if out-of-stock products are hidden from the storefront page
+     *
+     * @param int|null $storeId
+     * @return bool
+     */
+    public function shouldHideOutOfStock(?int $storeId = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_STOREFRONT_HIDE_OUT_OF_STOCK,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Read a strictly positive integer setting, falling back to a default
+     *
+     * @param string $path
+     * @param int $default
+     * @param int|null $storeId
+     * @return int
+     */
+    private function positiveInt(string $path, int $default, ?int $storeId = null): int
+    {
+        $value = (int) $this->scopeConfig->getValue($path, ScopeInterface::SCOPE_STORE, $storeId);
+
+        return $value > 0 ? $value : $default;
+    }
+
+    /**
+     * Split a comma-separated setting into trimmed, non-empty values
+     *
+     * @param string $value
+     * @return string[]
+     */
+    private function splitList(string $value): array
+    {
+        return array_values(array_filter(
+            array_map('trim', explode(',', $value)),
+            static fn (string $item): bool => $item !== ''
+        ));
+    }
+}

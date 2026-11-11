@@ -26,8 +26,20 @@
         <column xsi:type="int" name="quote_id" unsigned="true" nullable="true" 
                 comment="Quote ID"/>
         
-        <column xsi:type="varchar" name="affiliate_code" nullable="false" length="255" 
+        <!-- NULL for orders tracked without an affiliate code (coupon-only / "all orders" mode) -->
+        <column xsi:type="varchar" name="affiliate_code" nullable="true" length="255" 
                 comment="Affiliate Referral Code"/>
+        
+        <!-- Last order snapshot reported to Montu; drives order.updated de-duplication.
+             A row is "tracked" (order.placed recorded) once fingerprint is set. -->
+        <column xsi:type="varchar" name="fingerprint" nullable="true" length="64"
+                comment="Fingerprint of the last order state recorded"/>
+        
+        <column xsi:type="varchar" name="last_state" nullable="true" length="32"
+                comment="Order state at the last recorded event"/>
+        
+        <column xsi:type="varchar" name="last_status" nullable="true" length="64"
+                comment="Order status at the last recorded event"/>
         
         <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" 
                 default="CURRENT_TIMESTAMP" comment="Created At"/>
@@ -57,18 +69,40 @@
         
     </table>
 
-    <!-- Montu Webhook Log Table - Stores webhook attempts and retry status -->
+    <!-- Montu Webhook Log Table - the event outbox: one row per event (order.placed,
+         order.updated, creditmemo.created) with its payload snapshot, delivery
+         status and retry state -->
     <table name="montu_affiliate_webhook_log" resource="default" engine="innodb"
            comment="Montu Affiliate Webhook Log">
         
         <column xsi:type="int" name="entity_id" unsigned="true" nullable="false"
                 identity="true" comment="Entity ID"/>
         
+        <!-- Nullable only so the upgrade can add the unique column to existing rows;
+             rows queued by v1 keep NULL and the module always sets it. -->
+        <column xsi:type="varchar" name="event_id" nullable="true" length="36"
+                comment="Event UUID v4 (sent as event_id / X-Montu-Event-Id)"/>
+        
+        <column xsi:type="varchar" name="event_type" nullable="false" length="64" default="order.placed"
+                comment="Event type: order.placed, order.updated, creditmemo.created"/>
+        
         <column xsi:type="int" name="order_id" unsigned="true" nullable="false"
                 comment="Sales Order ID"/>
         
+        <column xsi:type="smallint" name="store_id" unsigned="true" nullable="true"
+                comment="Store view of the order"/>
+        
         <column xsi:type="varchar" name="affiliate_code" nullable="false" length="255"
                 comment="Affiliate Referral Code"/>
+        
+        <column xsi:type="varchar" name="trigger_event" nullable="true" length="128"
+                comment="Magento event that recorded the event"/>
+        
+        <column xsi:type="varchar" name="dedupe_key" nullable="true" length="191"
+                comment="order.placed:{order_id}, creditmemo.created:{creditmemo_id}, order.updated:{event_id}"/>
+        
+        <column xsi:type="mediumtext" name="payload" nullable="true"
+                comment="JSON snapshot taken when the event was recorded (NULL for rows queued by v1, which are not sent)"/>
         
         <column xsi:type="varchar" name="status" nullable="false" length="32" default="pending"
                 comment="Status: pending, processing, success, failed, max_retries"/>
@@ -105,14 +139,25 @@
             <column name="entity_id"/>
         </constraint>
         
-        <!-- Unique constraint on order_id (one webhook log per order) -->
-        <constraint xsi:type="unique" referenceId="MONTU_AFFILIATE_WEBHOOK_LOG_ORDER_ID_UNIQUE">
-            <column name="order_id"/>
+        <constraint xsi:type="unique" referenceId="MONTU_AFFILIATE_WEBHOOK_LOG_EVENT_ID">
+            <column name="event_id"/>
         </constraint>
         
-        <!-- Index on status for queue processing -->
-        <index referenceId="MONTU_AFFILIATE_WEBHOOK_LOG_STATUS" indexType="btree">
+        <constraint xsi:type="unique" referenceId="MONTU_AFFILIATE_WEBHOOK_LOG_DEDUPE_KEY">
+            <column name="dedupe_key"/>
+        </constraint>
+        
+        <!-- Per-order FIFO lookups -->
+        <index referenceId="MONTU_AFFILIATE_WEBHOOK_LOG_ORDER_ID_ENTITY_ID" indexType="btree">
+            <column name="order_id"/>
+            <column name="entity_id"/>
+        </index>
+        
+        <!-- Queue processing (status) and retention purge (status + age); replaces the
+             status-only index of v1, which this one covers -->
+        <index referenceId="MONTU_AFFILIATE_WEBHOOK_LOG_STATUS_UPDATED_AT" indexType="btree">
             <column name="status"/>
+            <column name="updated_at"/>
         </index>
         
         <!-- Index on next_retry_at for retry scheduling -->

@@ -38,7 +38,12 @@
         "magento/module-catalog": ">=104.0",
         "magento/module-catalog-inventory": ">=100.4",
         "magento/module-configurable-product": ">=100.4",
-        "magento/module-swatches": ">=100.4"
+        "magento/module-swatches": ">=100.4",
+        "magento/module-customer": ">=102.0",
+        "magento/module-backend": ">=102.0",
+        "magento/module-ui": ">=101.1",
+        "magento/module-eav": ">=102.0",
+        "magento/module-cron": ">=100.4"
     },
     "autoload": {
         "files": [
@@ -50,7 +55,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "1.0.x-dev"
+            "dev-main": "2.0.x-dev"
         }
     }
 }

@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Admin Configuration: Storefront
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="storefront" translate="label" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>Affiliate Storefront</label>
+        <field id="enabled" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Enable Storefront Page</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Enable the affiliate storefront route that renders an affiliate's recommended products.</comment>
+        </field>
+        <field id="route_path" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Route Path Prefix</label>
+            <comment>URL prefix for the storefront. Default "storefront" gives yourstore.com/storefront/ABC123. Flush cache after changing.</comment>
+            <validate>required-entry</validate>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+        <field id="title" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Page Heading</label>
+            <comment>Heading shown at the top of the affiliate storefront page.</comment>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+        <field id="products_endpoint" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Recommendations Endpoint URL</label>
+            <comment>Montu endpoint that returns an affiliate's recommended products. Must end with your store id, e.g. https://api.montu.io/montu/api/v1/ecommerce/magento/recommendations/123 (the affiliate code is appended automatically). Leave blank to skip the Montu call; the fallback below then applies.</comment>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+        <field id="locale" translate="label comment" type="select" sortOrder="45" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Storefront Language</label>
+            <source_model>Montu\Affiliate\Model\Config\Source\StorefrontLocale</source_model>
+            <comment>Language used to translate the affiliate storefront page (English or Spanish).</comment>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+        <field id="products_limit" translate="label comment" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Max Products</label>
+            <comment>Maximum number of recommended products to display (default: 12).</comment>
+            <validate>required-entry validate-digits validate-greater-than-zero</validate>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+        <field id="fallback" translate="label comment" type="select" sortOrder="55" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>When Montu Returns No Products</label>
+            <source_model>Montu\Affiliate\Model\Config\Source\StorefrontFallback</source_model>
+            <comment>What the affiliate page shows when Montu is unreachable, errors, or has no recommendations for the affiliate.</comment>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+        <field id="hide_out_of_stock" translate="label comment" type="select" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Hide Out-of-Stock Products</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Do not list recommended products that are out of stock.</comment>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+    </group>
+</include>

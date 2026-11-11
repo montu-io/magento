@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Admin Configuration: Delivery Queue
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="queue" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>Delivery Queue &amp; Logging</label>
+        <comment>Events are queued in the database and delivered by the cron group "montu_affiliate" (Magento cron must be running). Settings marked "global" apply to the whole installation.</comment>
+        <field id="cron_expr" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>Delivery Schedule (global)</label>
+            <backend_model>Montu\Affiliate\Model\Config\Backend\CronExpression</backend_model>
+            <comment>Cron expression that runs the delivery job. Default: */5 * * * * (every 5 minutes).</comment>
+            <validate>required-entry</validate>
+        </field>
+        <field id="batch_size" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>Batch Size (global)</label>
+            <comment>Maximum events delivered per cron run (default: 50).</comment>
+            <validate>required-entry validate-digits validate-greater-than-zero</validate>
+        </field>
+        <field id="max_retries" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Max Attempts</label>
+            <comment>Delivery attempts per event before it is marked max_retries (default: 5). Applies to events queued from now on; failed events can be requeued from Marketing &gt; Montu Affiliate &gt; Event Log.</comment>
+            <validate>required-entry validate-digits validate-greater-than-zero</validate>
+        </field>
+        <field id="request_timeout" translate="label comment" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Request Timeout (seconds)</label>
+            <config_path>montu_affiliate/webhook/timeout</config_path>
+            <comment>Maximum time in seconds to wait for Montu's response (default: 30).</comment>
+            <validate>required-entry validate-digits validate-greater-than-zero</validate>
+        </field>
+        <field id="retention_days" translate="label comment" type="text" sortOrder="80" showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>Delivered Events Retention (days, global)</label>
+            <comment>Delivered events older than this are deleted by the delivery job. 0 keeps them forever (default: 30). Failed events are never deleted.</comment>
+            <validate>required-entry validate-digits validate-zero-or-greater</validate>
+        </field>
+        <field id="log_level" translate="label comment" type="select" sortOrder="90" showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>Log Level (global)</label>
+            <source_model>Montu\Affiliate\Model\Config\Source\LogLevel</source_model>
+            <comment>Minimum level written to var/log/montu_affiliate.log (default: Warning). Use Debug only while investigating a problem.</comment>
+        </field>
+    </group>
+</include>

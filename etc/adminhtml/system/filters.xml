@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Admin Configuration: Order Filters
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="filters" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>Order Filters</label>
+        <comment>Which new orders are reported (order.placed). Updates and credit memos follow the orders that were reported.</comment>
+        <field id="orders_to_send" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Orders to Send</label>
+            <source_model>Montu\Affiliate\Model\Config\Source\OrdersToSend</source_model>
+            <comment>Default: orders with an affiliate code or any coupon code.</comment>
+        </field>
+        <field id="coupon_prefixes" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Coupon Prefixes</label>
+            <comment>Comma-separated, case-insensitive. Example: ANA,MONTU. Only used by the "coupon starting with a configured prefix" mode.</comment>
+        </field>
+        <field id="excluded_customer_groups" translate="label comment" type="multiselect" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Excluded Customer Groups</label>
+            <source_model>Magento\Customer\Model\Config\Source\Group\Multiselect</source_model>
+            <can_be_empty>1</can_be_empty>
+            <comment>Orders placed by these customer groups are never sent (for example wholesale or staff accounts).</comment>
+        </field>
+    </group>
+</include>

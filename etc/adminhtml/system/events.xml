@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Admin Configuration: Events
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="events" translate="label comment" type="text" sortOrder="25" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>Events to Send</label>
+        <comment>Which order events Montu receives. The module only reports facts; Montu decides whether an order is paid or valid.</comment>
+        <field id="send_order_placed" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Send Order Placed (order.placed)</label>
+            <config_path>montu_affiliate/webhook/send_on_order_placed</config_path>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Send an event when a qualifying order is created (see Order Filters). Turning this off stops all new orders from being tracked.</comment>
+        </field>
+        <field id="send_order_updated" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Send Order Updated (order.updated)</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Send an event when the state, status or paid / refunded / canceled totals of an already reported order change.</comment>
+        </field>
+        <field id="send_creditmemo_created" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Send Credit Memo Created (creditmemo.created)</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Send an event, once per credit memo, when a refund is created for an already reported order.</comment>
+        </field>
+    </group>
+</include>

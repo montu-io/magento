@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Admin Configuration: Webhook
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="webhook" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>Webhook Connection</label>
+        <comment>Where and how Montu receives the order events. Configure one endpoint and key pair per store view when the store views belong to different Montu stores.</comment>
+        <field id="enabled" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Enable Webhook</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Master switch for sending order events to Montu. When off, nothing is recorded or sent.</comment>
+        </field>
+        <field id="endpoint_url" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Webhook Endpoint URL</label>
+            <comment>The URL where order events are sent. Example: https://events.montu.io/webhooks/magento/123 (ends with your store id)</comment>
+            <validate>required-entry validate-url</validate>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+        <field id="key_id" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Key ID</label>
+            <comment>Public key id issued by Montu (starts with kid_). Sent with every request as X-Montu-Key-Id.</comment>
+            <validate>required-entry</validate>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+        <field id="signing_secret" translate="label comment" type="obscure" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Signing Secret</label>
+            <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+            <comment>Secret issued by Montu together with the Key ID. Signs every request (HMAC-SHA256) and keys the customer hashes; it is never sent over the network.</comment>
+            <validate>required-entry</validate>
+            <depends>
+                <field id="enabled">1</field>
+            </depends>
+        </field>
+    </group>
+</include>

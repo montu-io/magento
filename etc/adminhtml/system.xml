@@ -3,6 +3,8 @@
 /**
  * Montu Affiliate Tracking Extension - Admin Configuration
  *
+ * Each group lives in its own file under etc/adminhtml/system/.
+ *
  * @category  Montu
  * @package   Montu_Affiliate
  */
@@ -18,175 +20,14 @@
             <label>Affiliate Tracking</label>
             <tab>montu</tab>
             <resource>Montu_Affiliate::config</resource>
-            <group id="general" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-                <label>General Settings</label>
-                <field id="enabled" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Enable Module</label>
-                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>Enable or disable the Montu Affiliate tracking module.</comment>
-                </field>
-                <field id="url_parameter" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>URL Parameter Name</label>
-                    <comment>The URL parameter to capture (default: _m_aff). Example: yourstore.com?_m_aff=ABC123</comment>
-                    <validate>required-entry</validate>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="cookie_name" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Cookie Name</label>
-                    <comment>The name of the cookie to store the affiliate code (default: _montu_aff_ref_code).</comment>
-                    <validate>required-entry</validate>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="cookie_lifetime" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Cookie Lifetime (Days)</label>
-                    <comment>Number of days the cookie will be stored (default: 15 days).</comment>
-                    <validate>required-entry validate-digits validate-greater-than-zero</validate>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-            </group>
-            <group id="webhook" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
-                <label>Webhook Settings</label>
-                <field id="enabled" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Enable Webhook</label>
-                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>Enable or disable sending order data to Montu webhook.</comment>
-                </field>
-                <field id="endpoint_url" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Webhook Endpoint URL</label>
-                    <comment>The URL where order data will be sent. Example: https://events.montu.io/webhooks/magento/123 (ends with your store id)</comment>
-                    <validate>required-entry validate-url</validate>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="key_id" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Key ID</label>
-                    <comment>Public key id issued by Montu (starts with kid_). Sent with every request as X-Montu-Key-Id.</comment>
-                    <validate>required-entry</validate>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="signing_secret" translate="label comment" type="obscure" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Signing Secret</label>
-                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
-                    <comment>Secret issued by Montu together with the Key ID. Used to sign every request (HMAC-SHA256); it is never sent over the network.</comment>
-                    <validate>required-entry</validate>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="send_on_order_placed" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Send on Order Placed</label>
-                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>Send webhook when a new order is placed.</comment>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="timeout" translate="label comment" type="text" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Request Timeout (seconds)</label>
-                    <comment>Maximum time in seconds to wait for webhook response (default: 30).</comment>
-                    <validate>required-entry validate-digits validate-greater-than-zero</validate>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-            </group>
-            <group id="storefront" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                <label>Affiliate Storefront</label>
-                <field id="enabled" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Enable Storefront Page</label>
-                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>Enable the affiliate storefront route that renders an affiliate's recommended products.</comment>
-                </field>
-                <field id="route_path" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Route Path Prefix</label>
-                    <comment>URL prefix for the storefront. Default "storefront" gives yourstore.com/storefront/ABC123. Flush cache after changing.</comment>
-                    <validate>required-entry</validate>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="title" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Page Heading</label>
-                    <comment>Heading shown at the top of the affiliate storefront page.</comment>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="products_endpoint" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Recommendations Endpoint URL</label>
-                    <comment>Montu endpoint that returns an affiliate's recommended products. Must end with your store id, e.g. https://api.montu.io/montu/api/v1/ecommerce/magento/recommendations/123 (the affiliate code is appended automatically). Leave blank while the API is not ready (stub data is used).</comment>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="locale" translate="label comment" type="select" sortOrder="45" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Storefront Language</label>
-                    <source_model>Montu\Affiliate\Model\Config\Source\StorefrontLocale</source_model>
-                    <comment>Language used to translate the affiliate storefront page (English or Spanish).</comment>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="products_limit" translate="label comment" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Max Products</label>
-                    <comment>Maximum number of recommended products to display (default: 12).</comment>
-                    <validate>required-entry validate-digits validate-greater-than-zero</validate>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-            </group>
-            <group id="appearance" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
-                <label>Appearance (White-label)</label>
-                <comment>Control how the affiliate storefront is styled. "Auto" makes it match your store theme automatically; "Manual" lets you pin exact brand colours; "Off" uses neutral defaults. All colour fields accept hex (#000000), rgb()/rgba(), or a CSS colour name. Leave a field blank to inherit the theme / use the default.</comment>
-                <field id="theme_mode" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Theme Mode</label>
-                    <source_model>Montu\Affiliate\Model\Config\Source\ThemeMode</source_model>
-                    <comment>Auto: match the store theme at runtime. Manual: use the colours below. Off: neutral default styling.</comment>
-                </field>
-                <field id="accent_color" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Accent / Primary Color</label>
-                    <comment>Main action colour (buttons, active list, highlights). Example: #5023CC. Leave blank in Auto mode to sample the store's primary button.</comment>
-                </field>
-                <field id="accent_text_color" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Accent Text Color</label>
-                    <comment>Readable text colour shown on top of the accent colour (default: #ffffff).</comment>
-                </field>
-                <field id="text_color" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Body Text Color</label>
-                    <comment>Primary text colour for the storefront. Leave blank to inherit the store theme text colour.</comment>
-                </field>
-                <field id="muted_color" translate="label comment" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Muted Text Color</label>
-                    <comment>Secondary text colour (counts, subtitles). Example: #6d6d6d.</comment>
-                </field>
-                <field id="border_color" translate="label comment" type="text" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Border Color</label>
-                    <comment>Colour of card borders, dividers and the pager (default: #e3e3e3).</comment>
-                </field>
-                <field id="surface_color" translate="label comment" type="text" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Card Background Color</label>
-                    <comment>Background colour of the product cards (default: #ffffff).</comment>
-                </field>
-                <field id="card_radius" translate="label comment" type="text" sortOrder="80" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Card Corner Radius</label>
-                    <comment>Corner radius for product cards. Example: 10px, 0, 0.5rem. Leave blank for the default (10px).</comment>
-                </field>
-                <field id="font_family" translate="label comment" type="text" sortOrder="90" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Font Family</label>
-                    <comment>Optional font-family stack for the storefront. Example: "Merriweather Sans", sans-serif. Leave blank to inherit the store theme font.</comment>
-                </field>
-            </group>
+            <include path="Montu_Affiliate::system/general.xml"/>
+            <include path="Montu_Affiliate::system/webhook.xml"/>
+            <include path="Montu_Affiliate::system/events.xml"/>
+            <include path="Montu_Affiliate::system/filters.xml"/>
+            <include path="Montu_Affiliate::system/data.xml"/>
+            <include path="Montu_Affiliate::system/queue.xml"/>
+            <include path="Montu_Affiliate::system/storefront.xml"/>
+            <include path="Montu_Affiliate::system/appearance.xml"/>
         </section>
     </system>
 </config>
-

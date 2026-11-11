@@ -3,8 +3,9 @@
 /**
  * Montu Affiliate Tracking Extension - Cron Configuration
  *
- * Simple cron job that processes pending webhooks every minute.
- * No complex queue system needed.
+ * Delivers the queued events. Runs in its own cron group (etc/cron_groups.xml)
+ * so a slow Montu endpoint never delays other jobs. The schedule comes from
+ * Stores > Configuration > Montu > Queue & Logging (default every 5 minutes).
  *
  * @category  Montu
  * @package   Montu_Affiliate
@@ -12,12 +13,11 @@
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
-    <group id="default">
-        <!-- Process pending webhooks every minute -->
+    <group id="montu_affiliate">
         <job name="montu_affiliate_process_webhooks"
              instance="Montu\Affiliate\Cron\ProcessWebhooks"
              method="execute">
-            <schedule>*/5 * * * *</schedule>
+            <config_path>montu_affiliate/queue/cron_expr</config_path>
         </job>
     </group>
 </config>

@@ -2,6 +2,17 @@
 /**
  * Montu Affiliate Tracking Extension - Save Affiliate Code to Quote Observer
  *
+ * Writes the shopper's affiliate cookie on the quote's tracking row, so
+ * EventRecorder finds the code by quote id when the order is committed.
+ * Registered for the storefront and the REST checkout only
+ * (etc/frontend/events.xml, etc/webapi_rest/events.xml), never the admin:
+ * - checkout_cart_save_after: the cart is saved with the cookie present;
+ * - sales_model_service_quote_submit_before: last chance for a code that is
+ *   only in the cookie (no cart save saw it), before the order exists.
+ *
+ * Runs in the shopper's request: a shopper without the cookie costs no query,
+ * and no exception ever escapes.
+ *
  * @category  Montu
  * @package   Montu_Affiliate
  */
@@ -13,17 +24,40 @@ namespace Montu\Affiliate\Observer;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Stdlib\CookieManagerInterface;
+use Magento\Quote\Model\Quote;
 use Montu\Affiliate\Api\AffiliateTrackingRepositoryInterface;
+use Montu\Affiliate\Model\AffiliateCode;
 use Montu\Affiliate\Model\Config;
 use Psr\Log\LoggerInterface;
 
 class SaveAffiliateToQuote implements ObserverInterface
 {
+    /**
+     * @var Config
+     */
     private Config $config;
+
+    /**
+     * @var CookieManagerInterface
+     */
     private CookieManagerInterface $cookieManager;
+
+    /**
+     * @var AffiliateTrackingRepositoryInterface
+     */
     private AffiliateTrackingRepositoryInterface $trackingRepository;
+
+    /**
+     * @var LoggerInterface
+     */
     private LoggerInterface $logger;
 
+    /**
+     * @param Config $config
+     * @param CookieManagerInterface $cookieManager
+     * @param AffiliateTrackingRepositoryInterface $trackingRepository
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         Config $config,
         CookieManagerInterface $cookieManager,
@@ -37,84 +71,39 @@ class SaveAffiliateToQuote implements ObserverInterface
     }
 
     /**
-     * Execute observer - save affiliate code from cookie to tracking table
-     *
-     * IMPORTANT: This observer must NEVER throw exceptions that escape,
-     * as it runs inside Magento's cart transaction and would cause rollback errors.
-     *
      * @param Observer $observer
      * @return void
      */
     public function execute(Observer $observer): void
     {
-        // Early return if disabled
-        if (!$this->config->isEnabled()) {
-            return;
-        }
-
         try {
-            // Safely get the cart - may be null
-            $cart = $observer->getEvent()->getCart();
-            if ($cart === null) {
+            $event = $observer->getEvent();
+            $cart = $event->getCart();
+            $quote = $event->getQuote() ?: ($cart ? $cart->getQuote() : null);
+            if (!$quote instanceof Quote || !$quote->getId()) {
                 return;
             }
 
-            // Safely get the quote - may be null or without ID
-            $quote = $cart->getQuote();
-            if ($quote === null || !$quote->getId()) {
+            $storeId = (int) $quote->getStoreId();
+            if (!$this->config->isEnabled($storeId)) {
                 return;
             }
 
+            $code = AffiliateCode::fromCookie(
+                $this->cookieManager->getCookie($this->config->getCookieName($storeId))
+            );
+            if ($code === null) {
+                return;
+            }
+
+            // The first code captured on a cart is kept.
             $quoteId = (int) $quote->getId();
-
-            // Check if already tracked - wrap in try/catch in case table doesn't exist
-            try {
-                if ($this->trackingRepository->existsForQuote($quoteId)) {
-                    return;
-                }
-            } catch (\Exception $e) {
-                // Table might not exist yet (setup:upgrade not run), skip silently
-                $this->logger->debug(
-                    '[Montu Affiliate] Could not check quote tracking: ' . $e->getMessage()
-                );
-                return;
+            if (!$this->trackingRepository->existsForQuote($quoteId)) {
+                $this->trackingRepository->saveByQuoteId($quoteId, $code);
             }
-
-            // Get affiliate code from cookie
-            $cookieName = $this->config->getCookieName();
-            $rawAffiliateCode = $this->cookieManager->getCookie($cookieName);
-
-            if ($rawAffiliateCode) {
-                // Decode URL encoding set by frontend JS (encodeURIComponent)
-                $affiliateCode = urldecode($rawAffiliateCode);
-
-                // Validate format: alphanumeric, hyphens, underscores, max 100 chars
-                if (!preg_match('/^[a-zA-Z0-9_\-]{1,100}$/', $affiliateCode)) {
-                    $this->logger->warning(
-                        '[Montu Affiliate] Invalid affiliate code format, skipping',
-                        ['raw_value' => substr($rawAffiliateCode, 0, 120)]
-                    );
-                    return;
-                }
-
-                try {
-                    $this->trackingRepository->saveByQuoteId($quoteId, $affiliateCode);
-                    $this->logger->debug(
-                        '[Montu Affiliate] Saved affiliate code from cookie',
-                        ['quote_id' => $quoteId, 'affiliate_code' => $affiliateCode]
-                    );
-                } catch (\Exception $e) {
-                    // Don't break the cart - just log the error
-                    $this->logger->warning(
-                        '[Montu Affiliate] Could not save affiliate tracking: ' . $e->getMessage()
-                    );
-                }
-            }
-        } catch (\Exception $e) {
-            // CRITICAL: Never let exceptions escape this observer
-            // It would break the entire cart/checkout functionality
+        } catch (\Throwable $e) {
             $this->logger->error(
-                '[Montu Affiliate] Error in SaveAffiliateToQuote (suppressed): ' . $e->getMessage()
+                '[Montu Affiliate] Error saving the affiliate code on the quote (suppressed): ' . $e->getMessage()
             );
         }
     }

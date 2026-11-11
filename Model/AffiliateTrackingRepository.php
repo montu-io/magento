@@ -13,7 +13,6 @@ namespace Montu\Affiliate\Model;
 use Montu\Affiliate\Api\AffiliateTrackingRepositoryInterface;
 use Montu\Affiliate\Model\ResourceModel\AffiliateTracking as AffiliateTrackingResource;
 use Montu\Affiliate\Model\ResourceModel\AffiliateTracking\CollectionFactory;
-use Montu\Affiliate\Model\AffiliateTrackingFactory;
 use Psr\Log\LoggerInterface;
 
 class AffiliateTrackingRepository implements AffiliateTrackingRepositoryInterface
@@ -29,11 +28,6 @@ class AffiliateTrackingRepository implements AffiliateTrackingRepositoryInterfac
     private CollectionFactory $collectionFactory;
 
     /**
-     * @var AffiliateTrackingFactory
-     */
-    private AffiliateTrackingFactory $trackingFactory;
-
-    /**
      * @var LoggerInterface
      */
     private LoggerInterface $logger;
@@ -41,18 +35,15 @@ class AffiliateTrackingRepository implements AffiliateTrackingRepositoryInterfac
     /**
      * @param AffiliateTrackingResource $resource
      * @param CollectionFactory $collectionFactory
-     * @param AffiliateTrackingFactory $trackingFactory
      * @param LoggerInterface $logger
      */
     public function __construct(
         AffiliateTrackingResource $resource,
         CollectionFactory $collectionFactory,
-        AffiliateTrackingFactory $trackingFactory,
         LoggerInterface $logger
     ) {
         $this->resource = $resource;
         $this->collectionFactory = $collectionFactory;
-        $this->trackingFactory = $trackingFactory;
         $this->logger = $logger;
     }
 
@@ -62,26 +53,18 @@ class AffiliateTrackingRepository implements AffiliateTrackingRepositoryInterfac
     public function saveByQuoteId(int $quoteId, string $affiliateCode): void
     {
         try {
-            // Check if already exists for this quote
-            if ($this->existsForQuote($quoteId)) {
-                $this->logger->debug(
-                    '[Montu Affiliate] Tracking already exists for quote',
-                    ['quote_id' => $quoteId]
-                );
-                return;
-            }
+            // A plain insert, no model save: save() opens and rolls back its own
+            // transaction, which would doom a caller's one on failure.
+            $this->resource->getConnection()->insert(
+                $this->resource->getMainTable(),
+                ['quote_id' => $quoteId, 'affiliate_code' => $affiliateCode]
+            );
 
-            $tracking = $this->trackingFactory->create();
-            $tracking->setQuoteId($quoteId);
-            $tracking->setAffiliateCode($affiliateCode);
-            
-            $this->resource->save($tracking);
-
-            $this->logger->info(
+            $this->logger->debug(
                 '[Montu Affiliate] Saved affiliate tracking for quote',
                 ['quote_id' => $quoteId, 'affiliate_code' => $affiliateCode]
             );
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error(
                 '[Montu Affiliate] Error saving affiliate tracking: ' . $e->getMessage(),
                 ['quote_id' => $quoteId, 'exception' => $e]
@@ -91,30 +74,31 @@ class AffiliateTrackingRepository implements AffiliateTrackingRepositoryInterfac
 
     /**
      * @inheritdoc
+     *
+     * Usually already done: EventRecorder links the quote's row when it
+     * records order.placed, which happens before this runs.
      */
     public function linkToOrder(int $quoteId, int $orderId): void
     {
         try {
-            $collection = $this->collectionFactory->create();
-            $collection->addFieldToFilter('quote_id', $quoteId);
-            
-            /** @var AffiliateTracking $tracking */
-            $tracking = $collection->getFirstItem();
+            if ($this->getByOrderId($orderId) !== null) {
+                return;
+            }
 
-            if ($tracking->getEntityId()) {
-                $tracking->setOrderId($orderId);
-                $this->resource->save($tracking);
-
-                $this->logger->info(
-                    '[Montu Affiliate] Linked affiliate tracking to order',
-                    [
-                        'quote_id' => $quoteId,
-                        'order_id' => $orderId,
-                        'affiliate_code' => $tracking->getAffiliateCode()
-                    ]
+            /** @var AffiliateTracking $byQuote */
+            $byQuote = $this->collectionFactory->create()
+                ->addFieldToFilter('quote_id', $quoteId)
+                ->addFieldToFilter('order_id', ['null' => true])
+                ->getFirstItem();
+            if ($byQuote->getEntityId()) {
+                // A plain update, for the same reason as in saveByQuoteId().
+                $this->resource->getConnection()->update(
+                    $this->resource->getMainTable(),
+                    ['order_id' => $orderId],
+                    ['entity_id = ?' => (int) $byQuote->getEntityId()]
                 );
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error(
                 '[Montu Affiliate] Error linking to order: ' . $e->getMessage(),
                 ['quote_id' => $quoteId, 'order_id' => $orderId, 'exception' => $e]
@@ -135,32 +119,10 @@ class AffiliateTrackingRepository implements AffiliateTrackingRepositoryInterfac
             $tracking = $collection->getFirstItem();
 
             return $tracking->getEntityId() ? $tracking->getAffiliateCode() : null;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error(
                 '[Montu Affiliate] Error getting by order ID: ' . $e->getMessage(),
                 ['order_id' => $orderId, 'exception' => $e]
-            );
-            return null;
-        }
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function getByQuoteId(int $quoteId): ?string
-    {
-        try {
-            $collection = $this->collectionFactory->create();
-            $collection->addFieldToFilter('quote_id', $quoteId);
-            
-            /** @var AffiliateTracking $tracking */
-            $tracking = $collection->getFirstItem();
-
-            return $tracking->getEntityId() ? $tracking->getAffiliateCode() : null;
-        } catch (\Exception $e) {
-            $this->logger->error(
-                '[Montu Affiliate] Error getting by quote ID: ' . $e->getMessage(),
-                ['quote_id' => $quoteId, 'exception' => $e]
             );
             return null;
         }
@@ -176,29 +138,10 @@ class AffiliateTrackingRepository implements AffiliateTrackingRepositoryInterfac
             $collection->addFieldToFilter('quote_id', $quoteId);
             
             return $collection->getSize() > 0;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error(
                 '[Montu Affiliate] Error checking quote existence: ' . $e->getMessage(),
                 ['quote_id' => $quoteId, 'exception' => $e]
-            );
-            return false;
-        }
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function existsForOrder(int $orderId): bool
-    {
-        try {
-            $collection = $this->collectionFactory->create();
-            $collection->addFieldToFilter('order_id', $orderId);
-            
-            return $collection->getSize() > 0;
-        } catch (\Exception $e) {
-            $this->logger->error(
-                '[Montu Affiliate] Error checking order existence: ' . $e->getMessage(),
-                ['order_id' => $orderId, 'exception' => $e]
             );
             return false;
         }

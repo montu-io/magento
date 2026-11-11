@@ -19,10 +19,7 @@ if (!$viewModel->isEnabled()) {
 // Get the static file URL
 $jsUrl = $block->getViewFileUrl('Montu_Affiliate::js/tracking.js');
 ?>
-<!-- Montu Affiliate Tracking Configuration -->
-<script>
-    window.montuAffiliateConfig = <?= /* @noEscape */ $viewModel->getJsonConfig() ?>;
-</script>
-
-<!-- Montu Affiliate Tracking Script -->
-<script src="<?= $block->escapeUrl($jsUrl) ?>"></script>
+<!-- Montu Affiliate Tracking Script. The configuration travels in a data attribute
+     (not an inline <script>) so the strict CSP of Magento 2.4.7+ pages never blocks it. -->
+<script src="<?= $block->escapeUrl($jsUrl) ?>"
+        data-montu-config="<?= $block->escapeHtmlAttr($viewModel->getJsonConfig()) ?>"></script>

@@ -39,14 +39,6 @@ interface AffiliateTrackingRepositoryInterface
     public function getByOrderId(int $orderId): ?string;
 
     /**
-     * Get affiliate code by quote ID
-     *
-     * @param int $quoteId
-     * @return string|null
-     */
-    public function getByQuoteId(int $quoteId): ?string;
-
-    /**
      * Check if tracking exists for quote
      *
      * @param int $quoteId
@@ -54,12 +46,5 @@ interface AffiliateTrackingRepositoryInterface
      */
     public function existsForQuote(int $quoteId): bool;
 
-    /**
-     * Check if tracking exists for order
-     *
-     * @param int $orderId
-     * @return bool
-     */
-    public function existsForOrder(int $orderId): bool;
 }
 

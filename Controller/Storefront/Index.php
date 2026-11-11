@@ -27,6 +27,8 @@ use Magento\Framework\App\Area;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Controller\Result\Forward;
 use Magento\Framework\Controller\Result\ForwardFactory;
+use Magento\Framework\Controller\Result\Redirect;
+use Magento\Framework\Controller\Result\RedirectFactory;
 use Magento\Framework\Locale\ResolverInterface as LocaleResolver;
 use Magento\Framework\Stdlib\Cookie\CookieMetadataFactory;
 use Magento\Framework\Stdlib\Cookie\PublicCookieMetadata;
@@ -34,7 +36,9 @@ use Magento\Framework\Stdlib\CookieManagerInterface;
 use Magento\Framework\TranslateInterface;
 use Magento\Framework\View\Result\Page;
 use Magento\Framework\View\Result\PageFactory;
+use Magento\Store\Model\StoreManagerInterface;
 use Montu\Affiliate\Model\Config;
+use Montu\Affiliate\Service\RecommendationClient;
 use Psr\Log\LoggerInterface;
 
 class Index implements HttpGetActionInterface
@@ -47,6 +51,9 @@ class Index implements HttpGetActionInterface
     private RequestInterface $request;
     private PageFactory $pageFactory;
     private ForwardFactory $forwardFactory;
+    private RedirectFactory $redirectFactory;
+    private RecommendationClient $recommendationClient;
+    private StoreManagerInterface $storeManager;
     private CookieManagerInterface $cookieManager;
     private CookieMetadataFactory $cookieMetadataFactory;
     private Config $config;
@@ -58,6 +65,9 @@ class Index implements HttpGetActionInterface
      * @param RequestInterface $request
      * @param PageFactory $pageFactory
      * @param ForwardFactory $forwardFactory
+     * @param RedirectFactory $redirectFactory
+     * @param RecommendationClient $recommendationClient
+     * @param StoreManagerInterface $storeManager
      * @param CookieManagerInterface $cookieManager
      * @param CookieMetadataFactory $cookieMetadataFactory
      * @param Config $config
@@ -69,6 +79,9 @@ class Index implements HttpGetActionInterface
         RequestInterface $request,
         PageFactory $pageFactory,
         ForwardFactory $forwardFactory,
+        RedirectFactory $redirectFactory,
+        RecommendationClient $recommendationClient,
+        StoreManagerInterface $storeManager,
         CookieManagerInterface $cookieManager,
         CookieMetadataFactory $cookieMetadataFactory,
         Config $config,
@@ -79,6 +92,9 @@ class Index implements HttpGetActionInterface
         $this->request = $request;
         $this->pageFactory = $pageFactory;
         $this->forwardFactory = $forwardFactory;
+        $this->redirectFactory = $redirectFactory;
+        $this->recommendationClient = $recommendationClient;
+        $this->storeManager = $storeManager;
         $this->cookieManager = $cookieManager;
         $this->cookieMetadataFactory = $cookieMetadataFactory;
         $this->config = $config;
@@ -90,7 +106,7 @@ class Index implements HttpGetActionInterface
     /**
      * Render the affiliate storefront page.
      *
-     * @return Page|Forward
+     * @return Page|Forward|Redirect
      */
     public function execute()
     {
@@ -107,6 +123,14 @@ class Index implements HttpGetActionInterface
 
         // Capture the affiliate code into the cookie (server-side).
         $this->setAffiliateCookie($code);
+
+        // "Redirect to home" fallback: nothing to show, so send the visitor to the
+        // store (the cookie above already attributes them to the affiliate).
+        if ($this->config->getStorefrontFallback() === Config::FALLBACK_REDIRECT_HOME
+            && $this->recommendationClient->getRecommendations($code)->getAllVariantIds() === []
+        ) {
+            return $this->redirectFactory->create()->setUrl($this->storeManager->getStore()->getBaseUrl());
+        }
 
         // Render the page in the configured storefront language.
         $this->applyStorefrontLocale();
@@ -153,7 +177,7 @@ class Index implements HttpGetActionInterface
                 '[Montu Affiliate] Storefront route set affiliate cookie',
                 ['affiliate_code' => $code]
             );
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->warning(
                 '[Montu Affiliate] Could not set affiliate cookie from storefront route: '
                 . $e->getMessage()
@@ -177,7 +201,7 @@ class Index implements HttpGetActionInterface
             }
             $this->localeResolver->setLocale($locale);
             $this->translate->setLocale($locale)->loadData(Area::AREA_FRONTEND, true);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->warning(
                 '[Montu Affiliate] Could not apply storefront locale: ' . $e->getMessage()
             );

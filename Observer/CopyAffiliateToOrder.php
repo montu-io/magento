@@ -12,7 +12,6 @@ namespace Montu\Affiliate\Observer;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
-use Magento\Framework\Stdlib\CookieManagerInterface;
 use Magento\Quote\Model\Quote;
 use Magento\Sales\Model\Order;
 use Montu\Affiliate\Api\AffiliateTrackingRepositoryInterface;
@@ -27,11 +26,6 @@ class CopyAffiliateToOrder implements ObserverInterface
     private Config $config;
 
     /**
-     * @var CookieManagerInterface
-     */
-    private CookieManagerInterface $cookieManager;
-
-    /**
      * @var AffiliateTrackingRepositoryInterface
      */
     private AffiliateTrackingRepositoryInterface $trackingRepository;
@@ -43,88 +37,47 @@ class CopyAffiliateToOrder implements ObserverInterface
 
     /**
      * @param Config $config
-     * @param CookieManagerInterface $cookieManager
      * @param AffiliateTrackingRepositoryInterface $trackingRepository
      * @param LoggerInterface $logger
      */
     public function __construct(
         Config $config,
-        CookieManagerInterface $cookieManager,
         AffiliateTrackingRepositoryInterface $trackingRepository,
         LoggerInterface $logger
     ) {
         $this->config = $config;
-        $this->cookieManager = $cookieManager;
         $this->trackingRepository = $trackingRepository;
         $this->logger = $logger;
     }
 
     /**
-     * Execute observer - link affiliate tracking record to order
+     * Execute observer - link the quote's affiliate tracking record to the order
+     *
+     * The quote's row is written earlier by SaveAffiliateToQuote. Usually the
+     * row is already linked: EventRecorder links it when it records order.placed.
      *
      * @param Observer $observer
      * @return void
      */
     public function execute(Observer $observer): void
     {
-        if (!$this->config->isEnabled()) {
-            return;
-        }
-
         try {
             /** @var Quote $quote */
             $quote = $observer->getEvent()->getQuote();
             /** @var Order $order */
             $order = $observer->getEvent()->getOrder();
 
-            if (!$quote || !$order) {
+            if (!$quote || !$order || !$this->config->isEnabled((int) $order->getStoreId())) {
                 return;
             }
 
             $quoteId = (int) $quote->getId();
             $orderId = (int) $order->getId();
 
-            if (!$quoteId || !$orderId) {
-                return;
-            }
-
-            // Check if tracking exists for quote
-            $existingCode = $this->trackingRepository->getByQuoteId($quoteId);
-
-            if ($existingCode) {
-                // Link existing tracking to order
+            if ($quoteId && $orderId) {
                 $this->trackingRepository->linkToOrder($quoteId, $orderId);
-                
-                $this->logger->info(
-                    '[Montu Affiliate] Linked affiliate tracking to order',
-                    [
-                        'quote_id' => $quoteId,
-                        'order_id' => $orderId,
-                        'order_increment_id' => $order->getIncrementId(),
-                        'affiliate_code' => $existingCode
-                    ]
-                );
-            } else {
-                // Try to get from cookie as fallback (edge case)
-                $cookieName = $this->config->getCookieName();
-                $affiliateCode = $this->cookieManager->getCookie($cookieName);
-
-                if ($affiliateCode) {
-                    // Save new tracking with both quote and order
-                    $this->trackingRepository->saveByQuoteId($quoteId, $affiliateCode);
-                    $this->trackingRepository->linkToOrder($quoteId, $orderId);
-                    
-                    $this->logger->info(
-                        '[Montu Affiliate] Created and linked affiliate tracking from cookie',
-                        [
-                            'quote_id' => $quoteId,
-                            'order_id' => $orderId,
-                            'affiliate_code' => $affiliateCode
-                        ]
-                    );
-                }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error(
                 '[Montu Affiliate] Error in CopyAffiliateToOrder: ' . $e->getMessage(),
                 ['exception' => $e]

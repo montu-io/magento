@@ -106,7 +106,7 @@ class Router implements RouterInterface
                 ->setParam('code', $code);
 
             return $this->actionFactory->create(Index::class);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error(
                 '[Montu Affiliate] Storefront router error (suppressed): ' . $e->getMessage()
             );

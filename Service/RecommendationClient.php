@@ -11,9 +11,10 @@
  * The live Montu recommendations endpoint is called in fetchFromMontu() (signed
  * with HMAC-SHA256 using the signing secret, like the webhook); configure its URL in
  * montu_affiliate/storefront/products_endpoint. If the endpoint is unset, errors,
- * or returns nothing, the client degrades gracefully to demo recommendations
- * built from the real catalog by StubRecommendationProvider, so the storefront
- * page never fails. The expected JSON shape is documented on parseResponse().
+ * or returns nothing, the result is empty and the store's "fallback" setting
+ * decides what the controller shows: an empty page (default) or a redirect to the
+ * home page. The page itself never fails. The expected JSON shape is documented
+ * on parseResponse().
  *
  * @category  Montu
  * @package   Montu_Affiliate
@@ -23,8 +24,9 @@ declare(strict_types=1);
 
 namespace Montu\Affiliate\Service;
 
-use Magento\Framework\HTTP\Client\Curl;
+use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Framework\Serialize\Serializer\Json;
+use Magento\Store\Model\StoreManagerInterface;
 use Montu\Affiliate\Model\Config;
 use Montu\Affiliate\Model\Data\AffiliateInfo;
 use Montu\Affiliate\Model\Data\AffiliateRecommendations;
@@ -34,65 +36,92 @@ use Psr\Log\LoggerInterface;
 class RecommendationClient
 {
     /**
-     * While the Montu endpoint is not ready, always serve demo data.
-     * Flip to false (and configure an endpoint) once the API is live.
+     * This call runs inside a shopper's page request, so a slow Montu must never
+     * hold PHP workers: total request time and connect time are capped here.
      */
-    private const USE_STUB_DATA = false;
+    private const REQUEST_TIMEOUT_SECONDS = 2;
+    private const CONNECT_TIMEOUT_SECONDS = 1;
 
     private Config $config;
-    private Curl $curl;
+    private CurlFactory $curlFactory;
     private Json $json;
-    private StubRecommendationProvider $stubProvider;
+    private StoreManagerInterface $storeManager;
     private LoggerInterface $logger;
 
     /**
+     * @var array<string, AffiliateRecommendations> Per request, so the controller and the
+     *                                               view model share one Montu call
+     */
+    private array $cache = [];
+
+    /**
      * @param Config $config
-     * @param Curl $curl
+     * @param CurlFactory $curlFactory
      * @param Json $json
-     * @param StubRecommendationProvider $stubProvider
+     * @param StoreManagerInterface $storeManager
      * @param LoggerInterface $logger
      */
     public function __construct(
         Config $config,
-        Curl $curl,
+        CurlFactory $curlFactory,
         Json $json,
-        StubRecommendationProvider $stubProvider,
+        StoreManagerInterface $storeManager,
         LoggerInterface $logger
     ) {
         $this->config = $config;
-        $this->curl = $curl;
+        $this->curlFactory = $curlFactory;
         $this->json = $json;
-        $this->stubProvider = $stubProvider;
+        $this->storeManager = $storeManager;
         $this->logger = $logger;
     }
 
     /**
      * Get the recommendations for the given affiliate.
      *
+     * When Montu is unreachable, errors or has nothing for the affiliate, the
+     * result is empty (the controller applies the store's "fallback" setting).
+     *
      * @param string $affiliateCode
      * @return AffiliateRecommendations
      */
     public function getRecommendations(string $affiliateCode): AffiliateRecommendations
     {
-        $endpoint = $this->config->getStorefrontProductsEndpoint();
+        $storeId = (int) $this->storeManager->getStore()->getId();
+        $cacheKey = $storeId . '|' . $affiliateCode;
+        if (!isset($this->cache[$cacheKey])) {
+            $this->cache[$cacheKey] = $this->load($affiliateCode, $storeId);
+        }
 
-        if (!self::USE_STUB_DATA && $endpoint !== '') {
+        return $this->cache[$cacheKey];
+    }
+
+    /**
+     * @param string $affiliateCode
+     * @param int $storeId
+     * @return AffiliateRecommendations
+     */
+    private function load(string $affiliateCode, int $storeId): AffiliateRecommendations
+    {
+        $endpoint = $this->config->getStorefrontProductsEndpoint($storeId);
+        $recommendations = null;
+
+        if ($endpoint !== '') {
             try {
-                $recommendations = $this->fetchFromMontu($endpoint, $affiliateCode);
-                if ($recommendations->getLists() !== []) {
+                $recommendations = $this->fetchFromMontu($endpoint, $affiliateCode, $storeId);
+                if ($recommendations->getAllVariantIds() !== []) {
                     return $recommendations;
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // Never let the storefront page fail because Montu is unreachable.
                 $this->logger->warning(
-                    '[Montu Affiliate] Recommendation fetch failed, using demo data: '
-                    . $e->getMessage(),
+                    '[Montu Affiliate] Recommendation fetch failed: ' . $e->getMessage(),
                     ['affiliate_code' => $affiliateCode]
                 );
             }
         }
 
-        return $this->stubProvider->get($affiliateCode);
+        // Keep the affiliate's identity when Montu answered but had no products.
+        return $recommendations ?? new AffiliateRecommendations($affiliateCode, []);
     }
 
     /**
@@ -104,25 +133,26 @@ class RecommendationClient
      * `.../recommendations/{store_id}/{code}`. The request carries the public key
      * id in X-Montu-Key-Id and is signed with HMAC-SHA256 over `timestamp.code`
      * using the signing secret, which is never sent. Throws when the key id or
-     * secret is not configured (the caller falls back to demo data).
+     * secret is not configured (the caller then returns an empty result).
      *
      * @param string $endpoint
      * @param string $affiliateCode
+     * @param int $storeId
      * @return AffiliateRecommendations
      */
-    private function fetchFromMontu(string $endpoint, string $affiliateCode): AffiliateRecommendations
+    private function fetchFromMontu(string $endpoint, string $affiliateCode, int $storeId): AffiliateRecommendations
     {
-        $keyId = $this->config->getKeyId();
-        $signingSecret = $this->config->getSigningSecret();
+        $keyId = $this->config->getKeyId($storeId);
+        $signingSecret = $this->config->getSigningSecret($storeId);
         if ($keyId === '' || $signingSecret === '') {
             throw new \RuntimeException('Montu signing key is not configured');
         }
 
         $url = rtrim($endpoint, '/') . '/' . rawurlencode($affiliateCode);
 
-        $curl = new Curl();
-        $curl->setTimeout($this->config->getWebhookTimeout());
-        $curl->setOption(CURLOPT_CONNECTTIMEOUT, 10);
+        $curl = $this->curlFactory->create();
+        $curl->setTimeout(self::REQUEST_TIMEOUT_SECONDS);
+        $curl->setOption(CURLOPT_CONNECTTIMEOUT, self::CONNECT_TIMEOUT_SECONDS);
         $curl->setOption(CURLOPT_RETURNTRANSFER, true);
         $curl->setOption(CURLOPT_SSL_VERIFYPEER, true);
 

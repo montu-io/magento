@@ -31,6 +31,7 @@ use Magento\CatalogInventory\Model\ResourceModel\Stock\Status as StockStatusReso
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Sql\Expression;
 use Magento\Store\Model\StoreManagerInterface;
+use Montu\Affiliate\Model\Config;
 use Psr\Log\LoggerInterface;
 
 class CollectionBuilder
@@ -40,6 +41,7 @@ class CollectionBuilder
     private StockStatusResource $stockStatusResource;
     private ResourceConnection $resource;
     private StoreManagerInterface $storeManager;
+    private Config $config;
     private LoggerInterface $logger;
 
     /**
@@ -48,6 +50,7 @@ class CollectionBuilder
      * @param StockStatusResource $stockStatusResource
      * @param ResourceConnection $resource
      * @param StoreManagerInterface $storeManager
+     * @param Config $config
      * @param LoggerInterface $logger
      */
     public function __construct(
@@ -56,6 +59,7 @@ class CollectionBuilder
         StockStatusResource $stockStatusResource,
         ResourceConnection $resource,
         StoreManagerInterface $storeManager,
+        Config $config,
         LoggerInterface $logger
     ) {
         $this->collectionFactory = $collectionFactory;
@@ -63,6 +67,7 @@ class CollectionBuilder
         $this->stockStatusResource = $stockStatusResource;
         $this->resource = $resource;
         $this->storeManager = $storeManager;
+        $this->config = $config;
         $this->logger = $logger;
     }
 
@@ -151,7 +156,8 @@ class CollectionBuilder
             return $collection;
         }
 
-        $collection->setStoreId((int) $this->storeManager->getStore()->getId())
+        $storeId = (int) $this->storeManager->getStore()->getId();
+        $collection->setStoreId($storeId)
             ->addAttributeToSelect($this->catalogConfig->getProductAttributes())
             ->addAttributeToFilter('status', ProductStatus::STATUS_ENABLED)
             ->addIdFilter($productIds)
@@ -161,12 +167,15 @@ class CollectionBuilder
             ->addUrlRewrite();
 
         // Batched stock status (so isSalable() / availability needs no per-row call).
-        // false = enrich the collection with stock data without filtering out-of-stock items.
+        // The second argument filters out-of-stock products when the "Hide Out-of-Stock
+        // Products" setting is on; otherwise the collection is only enriched with stock data.
         // Flag the collection so the catalog's own stock-status plugin does not add a
-        // second join under the same `stock_status_index` alias (which would error),
-        // and so recommended-but-out-of-stock products are still shown rather than filtered.
+        // second join under the same `stock_status_index` alias (which would error).
         $collection->setFlag('has_stock_status_filter', true);
-        $this->stockStatusResource->addStockDataToCollection($collection, false);
+        $this->stockStatusResource->addStockDataToCollection(
+            $collection,
+            $this->config->shouldHideOutOfStock($storeId)
+        );
 
         // Preserve the Montu/affiliate ordering.
         $idList = implode(',', array_map('intval', $productIds));
@@ -243,7 +252,7 @@ class CollectionBuilder
             }
 
             return $selections;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->warning(
                 '[Montu Affiliate] Could not resolve recommended swatch selections: ' . $e->getMessage()
             );

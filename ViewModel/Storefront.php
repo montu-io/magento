@@ -243,7 +243,7 @@ class Storefront implements ArgumentInterface
     {
         try {
             return $this->storeManager->getStore()->getBaseUrl();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return '/';
         }
     }

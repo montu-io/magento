@@ -24,7 +24,7 @@ class AffiliateRecommendations
 
     /**
      * Full ordered set of recommended variant ids (including products in no
-     * list). Null means "derive from the lists" (used by the stub provider).
+     * list). Null means "derive from the lists".
      *
      * @var int[]|null
      */
@@ -97,7 +97,7 @@ class AffiliateRecommendations
      *
      * When the response provided an explicit product set (the live endpoint),
      * that is used verbatim so products in no list still appear under "All".
-     * Otherwise it falls back to the union of the lists (the stub provider).
+     * Otherwise it falls back to the union of the lists.
      *
      * @return int[]
      */

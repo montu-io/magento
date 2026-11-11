@@ -9,6 +9,32 @@
 (function () {
     'use strict';
 
+    // Captured now: document.currentScript is only set while the script runs.
+    var currentScript = document.currentScript;
+
+    // Same format rule as Model/AffiliateCode.php.
+    var CODE_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
+
+    /**
+     * Read the configuration from the data attribute of this script tag
+     * (the template no longer renders an inline script, which a strict CSP blocks).
+     * @returns {Object|null}
+     */
+    function readConfig() {
+        var script = currentScript || document.querySelector('script[data-montu-config]');
+        var raw = script ? script.getAttribute('data-montu-config') : null;
+
+        if (raw) {
+            try {
+                return JSON.parse(raw);
+            } catch (e) {
+                // fall through to the legacy global
+            }
+        }
+
+        return window.montuAffiliateConfig || null;
+    }
+
     /**
      * Get URL parameter value
      * @param {string} name - Parameter name
@@ -58,7 +84,12 @@
             var cookie = cookies[i].trim();
 
             if (cookie.indexOf(nameEQ) === 0) {
-                return decodeURIComponent(cookie.substring(nameEQ.length));
+                try {
+                    return decodeURIComponent(cookie.substring(nameEQ.length));
+                } catch (e) {
+                    // Malformed cookie: treat it as absent.
+                    return null;
+                }
             }
         }
 
@@ -71,32 +102,29 @@
      */
     function init(config) {
         if (!config) {
-            console.warn('[Montu Affiliate] No configuration found');
             return;
         }
 
         var affiliateCode = getUrlParameter(config.urlParameter);
 
-        if (affiliateCode) {
+        if (affiliateCode && CODE_PATTERN.test(affiliateCode)) {
             // Check if already have the same code
             var existingCode = getCookie(config.cookieName);
 
             if (existingCode !== affiliateCode) {
                 // Save affiliate code to cookie
                 setCookie(config.cookieName, affiliateCode, config.cookieLifetimeDays);
-
-                // Log for debugging
-                if (typeof console !== 'undefined' && console.log) {
-                    console.log('[Montu Affiliate] Captured affiliate code:', affiliateCode);
-                }
             }
         }
     }
 
-    // Initialize when DOM is ready
+    // Initialize when DOM is ready. Must never break the page, so errors are ignored.
     function onReady() {
-        var config = window.montuAffiliateConfig;
-        init(config);
+        try {
+            init(readConfig());
+        } catch (e) {
+            // Ignore: affiliate capture is best effort.
+        }
     }
 
     if (document.readyState === 'loading') {

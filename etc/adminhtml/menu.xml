@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Admin Menu
+ *
+ * Marketing > Montu Affiliate > Event Log
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="Montu_Affiliate::marketing" title="Montu Affiliate" translate="title" module="Montu_Affiliate"
+             sortOrder="100" parent="Magento_Backend::marketing" resource="Montu_Affiliate::event_log"/>
+        <add id="Montu_Affiliate::event_log" title="Event Log" translate="title" module="Montu_Affiliate"
+             sortOrder="10" parent="Montu_Affiliate::marketing" action="montu_affiliate/eventlog"
+             resource="Montu_Affiliate::event_log"/>
+    </menu>
+</config>

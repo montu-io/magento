@@ -12,6 +12,11 @@
     <acl>
         <resources>
             <resource id="Magento_Backend::admin">
+                <resource id="Magento_Backend::marketing">
+                    <resource id="Montu_Affiliate::marketing" title="Montu Affiliate" sortOrder="100">
+                        <resource id="Montu_Affiliate::event_log" title="Event Log" sortOrder="10"/>
+                    </resource>
+                </resource>
                 <resource id="Magento_Backend::stores">
                     <resource id="Magento_Backend::stores_settings">
                         <resource id="Magento_Config::config">
@@ -23,4 +28,3 @@
         </resources>
     </acl>
 </config>
-

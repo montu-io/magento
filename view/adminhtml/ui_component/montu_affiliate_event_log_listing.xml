@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Event Log listing
+ *
+ * Marketing > Montu Affiliate > Event Log: every event queued for Montu with
+ * its delivery status. Read-only apart from the Requeue mass action.
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">montu_affiliate_event_log_listing.montu_affiliate_event_log_listing_data_source</item>
+        </item>
+    </argument>
+    <settings>
+        <spinner>montu_affiliate_event_log_columns</spinner>
+        <deps>
+            <dep>montu_affiliate_event_log_listing.montu_affiliate_event_log_listing_data_source</dep>
+        </deps>
+    </settings>
+    <dataSource name="montu_affiliate_event_log_listing_data_source" component="Magento_Ui/js/grid/provider">
+        <settings>
+            <storageConfig>
+                <param name="indexField" xsi:type="string">entity_id</param>
+            </storageConfig>
+            <updateUrl path="mui/index/render"/>
+        </settings>
+        <aclResource>Montu_Affiliate::event_log</aclResource>
+        <dataProvider class="Magento\Framework\View\Element\UiComponent\DataProvider\DataProvider"
+                      name="montu_affiliate_event_log_listing_data_source">
+            <settings>
+                <requestFieldName>id</requestFieldName>
+                <primaryFieldName>entity_id</primaryFieldName>
+            </settings>
+        </dataProvider>
+    </dataSource>
+    <listingToolbar name="listing_top">
+        <settings>
+            <sticky>true</sticky>
+        </settings>
+        <bookmark name="bookmarks"/>
+        <columnsControls name="columns_controls"/>
+        <filters name="listing_filters"/>
+        <massaction name="listing_massaction">
+            <action name="requeue">
+                <settings>
+                    <confirm>
+                        <message translate="true">Put the selected events back in the delivery queue? Their attempts are reset and they are sent again, including events already delivered.</message>
+                        <title translate="true">Requeue / resend events</title>
+                    </confirm>
+                    <url path="montu_affiliate/eventlog/massRequeue"/>
+                    <type>requeue</type>
+                    <label translate="true">Requeue / resend</label>
+                </settings>
+            </action>
+        </massaction>
+        <paging name="listing_paging"/>
+    </listingToolbar>
+    <columns name="montu_affiliate_event_log_columns">
+        <selectionsColumn name="ids">
+            <settings>
+                <indexField>entity_id</indexField>
+            </settings>
+        </selectionsColumn>
+        <column name="entity_id">
+            <settings>
+                <filter>textRange</filter>
+                <label translate="true">ID</label>
+                <sorting>desc</sorting>
+            </settings>
+        </column>
+        <column name="event_type" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="Montu\Affiliate\Model\Config\Source\EventTypes"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Event</label>
+            </settings>
+        </column>
+        <column name="increment_id">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Order #</label>
+            </settings>
+        </column>
+        <column name="affiliate_code">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Affiliate Code</label>
+            </settings>
+        </column>
+        <column name="status" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="Montu\Affiliate\Model\Config\Source\WebhookStatus"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Status</label>
+            </settings>
+        </column>
+        <column name="retry_count">
+            <settings>
+                <label translate="true">Attempts</label>
+            </settings>
+        </column>
+        <column name="http_status_code">
+            <settings>
+                <filter>textRange</filter>
+                <label translate="true">HTTP Code</label>
+            </settings>
+        </column>
+        <column name="error_preview">
+            <settings>
+                <label translate="true">Last Error</label>
+                <sortable>false</sortable>
+            </settings>
+        </column>
+        <column name="trigger_event">
+            <settings>
+                <label translate="true">Trigger</label>
+            </settings>
+        </column>
+        <column name="created_at" class="Magento\Ui\Component\Listing\Columns\Date" component="Magento_Ui/js/grid/columns/date">
+            <settings>
+                <filter>dateRange</filter>
+                <dataType>date</dataType>
+                <label translate="true">Created At</label>
+            </settings>
+        </column>
+        <column name="last_attempt_at" class="Magento\Ui\Component\Listing\Columns\Date" component="Magento_Ui/js/grid/columns/date">
+            <settings>
+                <filter>dateRange</filter>
+                <dataType>date</dataType>
+                <label translate="true">Last Attempt</label>
+            </settings>
+        </column>
+        <column name="next_retry_at" class="Magento\Ui\Component\Listing\Columns\Date" component="Magento_Ui/js/grid/columns/date">
+            <settings>
+                <filter>dateRange</filter>
+                <dataType>date</dataType>
+                <label translate="true">Next Retry</label>
+            </settings>
+        </column>
+    </columns>
+</listing>

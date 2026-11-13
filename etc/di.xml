@@ -61,6 +61,36 @@
         </arguments>
     </type>
 
+    <type name="Montu\Affiliate\Cron\CleanupEvents">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Service\CatalogEventBuilder">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Controller\Adminhtml\EventLog\MassRequeue">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Model\Catalog\ChangeRecorder">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
+    <type name="Montu\Affiliate\Observer\RecordCatalogChanges">
+        <arguments>
+            <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>
+        </arguments>
+    </type>
+
     <type name="Montu\Affiliate\Cron\ProcessWebhooks">
         <arguments>
             <argument name="logger" xsi:type="object">Montu\Affiliate\Logger\Handler</argument>

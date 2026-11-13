@@ -84,7 +84,7 @@ class WebhookService
      *
      * @param WebhookLog $log
      * @param string $payload JSON snapshot stored with the event
-     * @return array{success: bool, status_code: int|null, response_body: string|null, error_message: string}
+     * @return array{success: bool, status_code: int|null, response_body: string|null, error_message: string, not_configured?: bool}
      */
     public function send(WebhookLog $log, string $payload): array
     {
@@ -100,6 +100,7 @@ class WebhookService
 
         if (empty($endpointUrl)) {
             $result['error_message'] = 'Webhook endpoint URL is not configured';
+            $result['not_configured'] = true;
             $this->logger->warning('[Montu Affiliate] ' . $result['error_message'], ['store_id' => $storeId]);
             return $result;
         }
@@ -109,6 +110,7 @@ class WebhookService
 
         if ($keyId === '' || $signingSecret === '') {
             $result['error_message'] = 'Webhook signing key is not configured';
+            $result['not_configured'] = true;
             $this->logger->warning('[Montu Affiliate] ' . $result['error_message'], ['store_id' => $storeId]);
             return $result;
         }

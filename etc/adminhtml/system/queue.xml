@@ -20,7 +20,7 @@
         </field>
         <field id="batch_size" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0">
             <label>Batch Size (global)</label>
-            <comment>Maximum events delivered per cron run (default: 50).</comment>
+            <comment>Maximum events delivered per cron run (default: 500). A run also stops after 4 minutes, or after 5 sends in a row that could not reach Montu; the rest goes in the next run.</comment>
             <validate>required-entry validate-digits validate-greater-than-zero</validate>
         </field>
         <field id="max_retries" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
@@ -36,7 +36,7 @@
         </field>
         <field id="retention_days" translate="label comment" type="text" sortOrder="80" showInDefault="1" showInWebsite="0" showInStore="0">
             <label>Delivered Events Retention (days, global)</label>
-            <comment>Delivered events older than this are deleted by the delivery job. 0 keeps them forever (default: 30). Failed events are never deleted.</comment>
+            <comment>A daily job deletes delivered order events older than this; 0 keeps them forever (default: 30). Catalog events are deleted after 7 days (the last one delivered per product / category is kept, without its content) and events that used up their attempts after 90 days.</comment>
             <validate>required-entry validate-digits validate-zero-or-greater</validate>
         </field>
         <field id="log_level" translate="label comment" type="select" sortOrder="90" showInDefault="1" showInWebsite="0" showInStore="0">

@@ -20,4 +20,13 @@
             <config_path>montu_affiliate/queue/cron_expr</config_path>
         </job>
     </group>
+    <!-- Daily cleanup in the default group: never runs inside a delivery run -->
+    <group id="default">
+        <!-- Deletes old events once a day, apart from delivery -->
+        <job name="montu_affiliate_cleanup_events"
+             instance="Montu\Affiliate\Cron\CleanupEvents"
+             method="execute">
+            <schedule>15 4 * * *</schedule>
+        </job>
+    </group>
 </config>

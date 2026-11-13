@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Montu Affiliate Tracking Extension - Admin Configuration: Catalog Events
+ *
+ * @category  Montu
+ * @package   Montu_Affiliate
+ */
+-->
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="catalog" translate="label comment" type="text" sortOrder="27" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>Catalog Events</label>
+        <comment>Keep the catalog Montu shows to ambassadors in sync: products (name, images, prices, variants, categories) and categories (Montu collections and the menu). Changes are collected and sent by the cron, never while the admin saves. Turn these on only once Montu confirms catalog sync is active for your store: an event Montu accepts counts as delivered, and unchanged products are not sent again.</comment>
+        <field id="send_product_created" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Send Product Created (product.created)</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Send an event when a product is created.</comment>
+        </field>
+        <field id="send_product_updated" translate="label comment" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Send Product Updated (product.updated)</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Send an event when a product changes: admin or API save, "Update attributes", website assignment or CSV import. A change to a variant sends its parent product.</comment>
+        </field>
+        <field id="send_product_deleted" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Send Product Deleted (product.deleted)</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Send an event when a product is deleted.</comment>
+        </field>
+        <field id="send_collection_created" translate="label comment" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Send Category Created (collection.created)</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Send an event when a category is created.</comment>
+        </field>
+        <field id="send_collection_updated" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Send Category Updated (collection.updated)</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Send an event when a category changes or is moved in the tree, including its products and menu settings.</comment>
+        </field>
+        <field id="send_collection_deleted" translate="label comment" type="select" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Send Category Deleted (collection.deleted)</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <comment>Send an event when a category is deleted.</comment>
+        </field>
+    </group>
+</include>

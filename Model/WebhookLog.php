@@ -22,6 +22,11 @@ class WebhookLog extends AbstractModel
     public const STATUS_MAX_RETRIES = 'max_retries';
 
     /**
+     * A catalog event with nothing to send (see error_message for why)
+     */
+    public const STATUS_SKIPPED = 'skipped';
+
+    /**
      * Default max retries
      */
     public const DEFAULT_MAX_RETRIES = 5;
@@ -325,7 +330,24 @@ class WebhookLog extends AbstractModel
                     ->setHttpStatusCode($statusCode)
                     ->setResponseBody($responseBody)
                     ->setErrorMessage(null)
-                    ->setNextRetryAt(null);
+                    ->setNextRetryAt(null)
+                    ->releaseCatalogKey();
+    }
+
+    /**
+     * A catalog deletion keeps its collapse key (catalog:...) until it is
+     * finished, so changes recorded meanwhile merge into it; release it then.
+     * Order events keep theirs: it is what stops an event being recorded twice.
+     *
+     * @return $this
+     */
+    private function releaseCatalogKey(): self
+    {
+        if ($this->getData('subject_id') !== null && str_starts_with((string) $this->getData('dedupe_key'), 'catalog:')) {
+            $this->setData('dedupe_key', null);
+        }
+
+        return $this;
     }
 
     /**
@@ -356,23 +378,10 @@ class WebhookLog extends AbstractModel
                  ->setNextRetryAt($nextRetryAt);
         } else {
             $this->setStatus(self::STATUS_MAX_RETRIES)
-                 ->setNextRetryAt(null);
+                 ->setNextRetryAt(null)
+                 ->releaseCatalogKey();
         }
 
         return $this;
-    }
-
-    /**
-     * Put the event back in the queue (admin "Requeue" action)
-     *
-     * @param int $maxRetries
-     * @return $this
-     */
-    public function requeue(int $maxRetries): self
-    {
-        return $this->setStatus(self::STATUS_PENDING)
-                    ->setRetryCount(0)
-                    ->setNextRetryAt(null)
-                    ->setMaxRetries($maxRetries);
     }
 }

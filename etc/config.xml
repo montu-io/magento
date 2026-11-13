@@ -29,6 +29,14 @@
                 <send_order_updated>1</send_order_updated>
                 <send_creditmemo_created>1</send_creditmemo_created>
             </events>
+            <catalog>
+                <send_product_created>0</send_product_created>
+                <send_product_updated>0</send_product_updated>
+                <send_product_deleted>0</send_product_deleted>
+                <send_collection_created>0</send_collection_created>
+                <send_collection_updated>0</send_collection_updated>
+                <send_collection_deleted>0</send_collection_deleted>
+            </catalog>
             <filters>
                 <orders_to_send>affiliate_code_or_coupon</orders_to_send>
                 <coupon_prefixes></coupon_prefixes>
@@ -39,7 +47,7 @@
             </data>
             <queue>
                 <cron_expr>*/5 * * * *</cron_expr>
-                <batch_size>50</batch_size>
+                <batch_size>500</batch_size>
                 <max_retries>5</max_retries>
                 <retention_days>30</retention_days>
                 <log_level>warning</log_level>

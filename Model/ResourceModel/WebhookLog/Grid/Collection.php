@@ -35,7 +35,7 @@ class Collection extends SearchResult
         parent::_construct();
 
         $mainTableFields = [
-            'entity_id', 'event_type', 'order_id', 'status', 'created_at', 'last_attempt_at', 'next_retry_at',
+            'entity_id', 'event_type', 'order_id', 'subject_id', 'store_id', 'status', 'created_at', 'last_attempt_at', 'next_retry_at',
         ];
         foreach ($mainTableFields as $field) {
             $this->addFilterToMap($field, 'main_table.' . $field);
@@ -58,6 +58,8 @@ class Collection extends SearchResult
                 'entity_id',
                 'event_type',
                 'order_id',
+                'subject_id',
+                'store_id',
                 'affiliate_code',
                 'status',
                 'retry_count',

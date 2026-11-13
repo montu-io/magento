@@ -28,9 +28,9 @@ use Magento\Catalog\Model\Product\Attribute\Source\Status as ProductStatus;
 use Magento\Catalog\Model\ResourceModel\Product\Collection;
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
 use Magento\CatalogInventory\Model\ResourceModel\Stock\Status as StockStatusResource;
-use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Sql\Expression;
 use Magento\Store\Model\StoreManagerInterface;
+use Montu\Affiliate\Model\Catalog\VariantLinks;
 use Montu\Affiliate\Model\Config;
 use Psr\Log\LoggerInterface;
 
@@ -39,36 +39,36 @@ class CollectionBuilder
     private CollectionFactory $collectionFactory;
     private CatalogConfig $catalogConfig;
     private StockStatusResource $stockStatusResource;
-    private ResourceConnection $resource;
     private StoreManagerInterface $storeManager;
     private Config $config;
     private LoggerInterface $logger;
+    private VariantLinks $variantLinks;
 
     /**
      * @param CollectionFactory $collectionFactory
      * @param CatalogConfig $catalogConfig
      * @param StockStatusResource $stockStatusResource
-     * @param ResourceConnection $resource
      * @param StoreManagerInterface $storeManager
      * @param Config $config
      * @param LoggerInterface $logger
+     * @param VariantLinks $variantLinks
      */
     public function __construct(
         CollectionFactory $collectionFactory,
         CatalogConfig $catalogConfig,
         StockStatusResource $stockStatusResource,
-        ResourceConnection $resource,
         StoreManagerInterface $storeManager,
         Config $config,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        VariantLinks $variantLinks
     ) {
         $this->collectionFactory = $collectionFactory;
         $this->catalogConfig = $catalogConfig;
         $this->stockStatusResource = $stockStatusResource;
-        $this->resource = $resource;
         $this->storeManager = $storeManager;
         $this->config = $config;
         $this->logger = $logger;
+        $this->variantLinks = $variantLinks;
     }
 
     /**
@@ -124,19 +124,7 @@ class CollectionBuilder
             return [];
         }
 
-        $connection = $this->resource->getConnection();
-        $select = $connection->select()
-            ->from(
-                $this->resource->getTableName('catalog_product_super_link'),
-                ['product_id', 'parent_id']
-            )
-            ->where('product_id IN (?)', $variantIds);
-
-        $map = [];
-        foreach ($connection->fetchAll($select) as $row) {
-            $map[(int) $row['product_id']] = (int) $row['parent_id'];
-        }
-        return $map;
+        return $this->variantLinks->parentByChild($variantIds);
     }
 
     /**
@@ -201,23 +189,7 @@ class CollectionBuilder
             $parentIds = array_keys($recommendedChildByParent);
 
             // 1) Configurable attribute ids + codes for these parents (one query).
-            $connection = $this->resource->getConnection();
-            $select = $connection->select()
-                ->from(
-                    ['sa' => $this->resource->getTableName('catalog_product_super_attribute')],
-                    ['attribute_id']
-                )
-                ->join(
-                    ['ea' => $this->resource->getTableName('eav_attribute')],
-                    'ea.attribute_id = sa.attribute_id',
-                    ['attribute_code']
-                )
-                ->where('sa.product_id IN (?)', $parentIds);
-
-            $codeByAttributeId = [];
-            foreach ($connection->fetchAll($select) as $row) {
-                $codeByAttributeId[(int) $row['attribute_id']] = (string) $row['attribute_code'];
-            }
+            $codeByAttributeId = $this->variantLinks->optionAttributesOf($parentIds);
 
             if ($codeByAttributeId === []) {
                 return [];

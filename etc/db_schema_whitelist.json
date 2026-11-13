@@ -13,7 +13,8 @@
         },
         "constraint": {
             "PRIMARY": true,
-            "MONTU_AFFILIATE_TRACKING_ORDER_ID_UNIQUE": true
+            "MONTU_AFFILIATE_TRACKING_ORDER_ID_UNIQUE": true,
+            "MONTU_AFFILIATE_TRACKING_ORDER_ID": true
         },
         "index": {
             "MONTU_AFFILIATE_TRACKING_QUOTE_ID": true,
@@ -40,7 +41,9 @@
             "next_retry_at": true,
             "last_attempt_at": true,
             "created_at": true,
-            "updated_at": true
+            "updated_at": true,
+            "subject_id": true,
+            "content_hash": true
         },
         "constraint": {
             "PRIMARY": true,
@@ -52,7 +55,10 @@
             "MONTU_AFFILIATE_WEBHOOK_LOG_STATUS": true,
             "MONTU_AFFILIATE_WEBHOOK_LOG_NEXT_RETRY": true,
             "MONTU_AFFILIATE_WEBHOOK_LOG_STATUS_UPDATED_AT": true,
-            "MONTU_AFFILIATE_WEBHOOK_LOG_ORDER_ID_ENTITY_ID": true
+            "MONTU_AFFILIATE_WEBHOOK_LOG_ORDER_ID_ENTITY_ID": true,
+            "MONTU_AFFILIATE_WEBHOOK_LOG_STATUS_ENTITY_ID": true,
+            "MONTU_AFFILIATE_WEBHOOK_LOG_SUBJECT_ID_STORE_ID": true,
+            "MONTU_AFFILIATE_WEBHOOK_LOG_NEXT_RETRY_AT": true
         }
     }
 }

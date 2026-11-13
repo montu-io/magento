@@ -43,6 +43,18 @@ class Config
     private const XML_PATH_APPEARANCE_FONT_FAMILY = 'montu_affiliate/appearance/font_family';
     private const XML_PATH_EVENTS_SEND_ORDER_UPDATED = 'montu_affiliate/events/send_order_updated';
     private const XML_PATH_EVENTS_SEND_CREDITMEMO_CREATED = 'montu_affiliate/events/send_creditmemo_created';
+
+    /**
+     * Catalog event type => its on/off setting
+     */
+    private const XML_PATH_CATALOG_EVENTS = [
+        EventType::PRODUCT_CREATED => 'montu_affiliate/catalog/send_product_created',
+        EventType::PRODUCT_UPDATED => 'montu_affiliate/catalog/send_product_updated',
+        EventType::PRODUCT_DELETED => 'montu_affiliate/catalog/send_product_deleted',
+        EventType::COLLECTION_CREATED => 'montu_affiliate/catalog/send_collection_created',
+        EventType::COLLECTION_UPDATED => 'montu_affiliate/catalog/send_collection_updated',
+        EventType::COLLECTION_DELETED => 'montu_affiliate/catalog/send_collection_deleted',
+    ];
     private const XML_PATH_FILTERS_ORDERS_TO_SEND = 'montu_affiliate/filters/orders_to_send';
     private const XML_PATH_FILTERS_COUPON_PREFIXES = 'montu_affiliate/filters/coupon_prefixes';
     private const XML_PATH_FILTERS_EXCLUDED_GROUPS = 'montu_affiliate/filters/excluded_customer_groups';
@@ -524,8 +536,34 @@ class Config
             EventType::ORDER_PLACED => $this->shouldSendOnOrderPlaced($storeId),
             EventType::ORDER_UPDATED => $this->shouldSendOrderUpdated($storeId),
             EventType::CREDITMEMO_CREATED => $this->shouldSendCreditmemoCreated($storeId),
-            default => false,
+            default => isset(self::XML_PATH_CATALOG_EVENTS[$eventType]) && $this->scopeConfig->isSetFlag(
+                self::XML_PATH_CATALOG_EVENTS[$eventType],
+                ScopeInterface::SCOPE_STORE,
+                $storeId
+            ),
         };
+    }
+
+    /**
+     * Check if a store view sends any of the given event types (module and
+     * webhook enabled, and at least one of the types switched on)
+     *
+     * @param string[] $eventTypes EventType constants
+     * @param int $storeId
+     * @return bool
+     */
+    public function sendsAnyOf(array $eventTypes, int $storeId): bool
+    {
+        if (!$this->isEnabled($storeId) || !$this->isWebhookEnabled($storeId)) {
+            return false;
+        }
+        foreach ($eventTypes as $eventType) {
+            if ($this->isEventTypeEnabled($eventType, $storeId)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -605,7 +643,7 @@ class Config
      */
     public function getBatchSize(): int
     {
-        return $this->positiveInt(self::XML_PATH_QUEUE_BATCH_SIZE, 50);
+        return $this->positiveInt(self::XML_PATH_QUEUE_BATCH_SIZE, 500);
     }
 
     /**

@@ -23,6 +23,7 @@
             <include path="Montu_Affiliate::system/general.xml"/>
             <include path="Montu_Affiliate::system/webhook.xml"/>
             <include path="Montu_Affiliate::system/events.xml"/>
+            <include path="Montu_Affiliate::system/catalog.xml"/>
             <include path="Montu_Affiliate::system/filters.xml"/>
             <include path="Montu_Affiliate::system/data.xml"/>
             <include path="Montu_Affiliate::system/queue.xml"/>

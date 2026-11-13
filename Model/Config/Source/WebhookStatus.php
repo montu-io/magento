@@ -29,6 +29,7 @@ class WebhookStatus implements OptionSourceInterface
             ['value' => WebhookLog::STATUS_SUCCESS, 'label' => __('Delivered')],
             ['value' => WebhookLog::STATUS_FAILED, 'label' => __('Failed (will retry)')],
             ['value' => WebhookLog::STATUS_MAX_RETRIES, 'label' => __('Failed (max attempts)')],
+            ['value' => WebhookLog::STATUS_SKIPPED, 'label' => __('Skipped (nothing to send)')],
         ];
     }
 }

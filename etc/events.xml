@@ -37,4 +37,54 @@
                   instance="Montu\Affiliate\Observer\RecordOrderEvents"/>
     </event>
 
+    <!-- Catalog changes (product.*, collection.*): only events fired after the change.
+         Each is reduced to "these products / categories changed" and written to the
+         outbox as an event the cron builds. Observer\RecordCatalogChanges documents
+         what each Magento event means. -->
+    <!-- Every product model save (admin, REST, async API), after commit; stock-only saves are filtered out -->
+    <event name="catalog_product_save_commit_after">
+        <observer name="montu_affiliate_catalog_product_save"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+    <event name="catalog_product_delete_commit_after">
+        <observer name="montu_affiliate_catalog_product_delete"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+    <!-- Grid "Update attributes" and enable / disable (direct SQL, recorded once it commits) -->
+    <event name="catalog_product_attribute_update_before">
+        <observer name="montu_affiliate_catalog_product_attribute_update"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+    <!-- Website assignment (direct SQL, fired after commit) -->
+    <event name="catalog_product_to_website_change">
+        <observer name="montu_affiliate_catalog_product_website"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+    <!-- System > Import (direct SQL, no product save): per bunch, then once finished -->
+    <event name="catalog_product_import_bunch_save_after">
+        <observer name="montu_affiliate_catalog_product_import"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+    <event name="catalog_product_import_bunch_delete_after">
+        <observer name="montu_affiliate_catalog_product_import_delete"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+    <event name="catalog_product_import_finish_before">
+        <observer name="montu_affiliate_catalog_product_import_finish"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+    <event name="catalog_category_save_commit_after">
+        <observer name="montu_affiliate_catalog_category_save"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+    <!-- Fired once the category move committed -->
+    <event name="category_move">
+        <observer name="montu_affiliate_catalog_category_move"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+    <event name="catalog_category_delete_commit_after">
+        <observer name="montu_affiliate_catalog_category_delete"
+                  instance="Montu\Affiliate\Observer\RecordCatalogChanges"/>
+    </event>
+
 </config>

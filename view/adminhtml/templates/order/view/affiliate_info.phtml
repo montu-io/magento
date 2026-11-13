@@ -23,7 +23,7 @@ $affiliateCode = $block->escapeHtml($block->getAffiliateCode());
             <table class="admin__table-secondary">
                 <tr>
                     <th><?= $block->escapeHtml(__('Affiliate Code')) ?></th>
-                    <td><strong><?= $affiliateCode ?></strong></td>
+                    <td><strong><?= $block->escapeHtml($affiliateCode) ?></strong></td>
                 </tr>
             </table>
         </div>

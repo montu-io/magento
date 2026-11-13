@@ -99,7 +99,7 @@ $appearanceVars = $viewModel->getAppearanceVars();
                                         </a>
                                     </strong>
 
-                                    <?= $block->getProductPrice($product) ?>
+                                    <?= /* @noEscape */ $block->getProductPrice($product) ?>
 
                                     <?= $block->getProductDetailsHtml($product) ?>
 

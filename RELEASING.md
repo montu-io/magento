@@ -94,8 +94,13 @@ upgrade (it keeps accepting 1.0).
 - Outbox in `montu_affiliate_webhook_log` (one row per event, payload snapshot taken when the
   event is recorded), per-order FIFO delivery (an event waits only for earlier events of its order
   that are not finished; `success` and `max_retries` both count as finished), recovery of rows stuck
-  in `processing`, retention of delivered rows (default 30 days, deleted in batches). Rows of a
+  in `processing`, a daily cleanup job (delivered order events after 30 days by default, catalog events after 7, dead events after 90). Rows of a
   store view with the module or webhook disabled never block other rows.
+- Catalog events `product.created/updated/deleted` and `collection.created/updated/deleted` (all off
+  by default): only changes to the fields Montu mirrors are recorded, never stock; built by the cron
+  in batches from the current data. See `WEBHOOKS.md`. **Release order:** the Montu backend must
+  process catalog events before any store turns them on (the gateway answers 2xx when it queues an
+  event, so the module marks it delivered whatever the backend does with it).
 - Admin **Marketing > Montu Affiliate > Event Log** with a Requeue / resend mass action.
 - Events are recorded from commit-time Magento events only, so snapshots never contain unsaved ids,
   and the module never touches the shopper's or the caller's transaction (it records only when no
@@ -123,11 +128,21 @@ bin/magento cache:flush
 
 - The cron job now runs in the group `montu_affiliate` (`bin/magento cron:run --group=montu_affiliate`
   to run it alone). A plain `cron:run` runs every group.
+- The default **Batch Size** is now 500 (was 50). A store that ever saved the Delivery Queue settings
+  keeps its saved value: set it to 500 in Stores > Configuration > Montu if it still shows 50. A
+  delivery run stops after 4 minutes, or after 5 sends in a row that could not reach Montu; the
+  rest goes in the next run.
 - There is no backfill: rows queued by v1 have no payload, so the cron closes every v1 row still
   pending or failed as `max_retries` ("Recorded by module v1 without a payload; not sent") instead
   of sending it. Orders reported by v1 are not tracked by v2, so they get no `order.updated`.
   To lose nothing, let v1 drain its queue right before upgrading (no `pending` / `failed` rows
   left in `montu_affiliate_webhook_log`).
+
+## What is published
+
+`magento/` is pushed as it is to the public repo `github.com/montu-io/magento`. Never put client
+names or Montu internals in it: the module guide for Claude Code lives outside it, at the monorepo's
+`.claude/MAGENTO_MODULE.md`.
 
 ## Pre-release checklist
 

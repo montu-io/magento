@@ -150,11 +150,13 @@ Para dejar de enviar un tipo de evento usa su interruptor *Send ...*.
 | Campo | Descripción | Default |
 |-------|-------------|---------|
 | Delivery Schedule (global) | Expresión cron del envío (se valida al guardar) | `*/5 * * * *` |
-| Batch Size (global) | Eventos máximos por ejecución | 50 |
+| Batch Size (global) | Eventos máximos por ejecución (una ejecución además se detiene a los 4 minutos, o tras 5 envíos seguidos que no logran llegar a Montu) | 500 |
 | Max Attempts | Intentos por evento (se guarda en cada fila al encolarla) | 5 |
 | Request Timeout (seconds) | Timeout de la solicitud (`webhook/timeout`) | 30 |
-| Delivered Events Retention (days, global) | Borra eventos entregados más antiguos que esto, en lotes (0 = conservar) | 30 |
+| Delivered Events Retention (days, global) | Una tarea diaria borra los eventos de pedidos entregados más antiguos que esto, en lotes (0 = conservar). Los de catálogo se borran a los 7 días y los fallidos definitivos a los 90 | 30 |
 | Log Level (global) | Nivel mínimo de `var/log/montu_affiliate.log` | `warning` |
+
+> **Catálogo y cargas masivas (CSV):** el módulo solo envía los productos cuyo contenido cambió (los que no cambiaron se marcan como *omitidos*). Cada ejecución del cron envía como máximo *Batch Size* eventos, así que el volumen por hora es *Batch Size* × ejecuciones por hora (por defecto 500 cada 5 minutos = 6.000 por hora). Los eventos de pedidos siempre se envían primero.
 
 > **Key ID y Signing Secret** los emite Montu por tienda y por ambiente (staging y
 > producción tienen pares distintos). El Key ID identifica a la tienda; el secreto solo

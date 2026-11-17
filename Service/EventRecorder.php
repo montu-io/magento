@@ -3,7 +3,7 @@
  * Montu Affiliate Tracking Extension - Event Recorder
  *
  * Turns a committed order change into an outbox row: resolves the affiliate
- * code, decides whether the event applies (qualification for order.placed,
+ * code and referral link, decides whether the event applies (qualification for order.placed,
  * "tracked" for the others), de-duplicates, snapshots the payload and queues
  * it. Delivery is Cron\ProcessWebhooks; nothing here talks to Montu.
  *
@@ -173,6 +173,7 @@ class EventRecorder
             $this->now(),
             $order,
             (string) $tracking->getAffiliateCode(),
+            $tracking->getReferralLink(),
             $tracking->getLastState(),
             $tracking->getLastStatus(),
             $creditmemo
@@ -202,7 +203,7 @@ class EventRecorder
     }
 
     /**
-     * Resolve the affiliate code (tracking row by order, else the code captured
+     * Resolve the affiliate code and link (tracking row by order, else the ones captured
      * on the order's quote: sales_order_save_commit_after fires before
      * CopyAffiliateToOrder links the row), qualify, then queue order.placed and
      * start tracking the order.
@@ -219,10 +220,11 @@ class EventRecorder
             return;
         }
 
-        $code = (string) ($tracking !== null ? $tracking->getAffiliateCode() : null);
-        if ($code === '') {
-            $code = (string) $this->trackingResource->findCodeByQuoteId((int) $order->getQuoteId());
-        }
+        $captured = $tracking !== null && (string) $tracking->getAffiliateCode() !== ''
+            ? $tracking
+            : $this->trackingResource->findByQuoteId((int) $order->getQuoteId());
+        $code = $captured !== null ? (string) $captured->getAffiliateCode() : '';
+        $link = $captured !== null && $code !== '' ? $captured->getReferralLink() : null;
         if (!$this->qualifier->qualifies($order, $code)) {
             return;
         }
@@ -233,11 +235,12 @@ class EventRecorder
             $this->identityGenerator->generateId(),
             $this->now(),
             $order,
-            $code
+            $code,
+            $link
         );
         $row = $this->outboxRow($context, 'order.placed:' . (int) $order->getId());
 
-        $this->transactional(function () use ($order, $code, $row): bool {
+        $this->transactional(function () use ($order, $code, $link, $row): bool {
             $inserted = $this->webhookLogResource->insertEvent($row);
 
             // Also when the event was already queued (a concurrent save): the
@@ -246,6 +249,7 @@ class EventRecorder
                 (int) $order->getId(),
                 (int) $order->getQuoteId(),
                 $code,
+                $link,
                 $this->fingerprint->forOrder($order),
                 (string) $order->getState(),
                 (string) $order->getStatus()
@@ -281,6 +285,7 @@ class EventRecorder
             $this->now(),
             $order,
             (string) $tracking->getAffiliateCode(),
+            $tracking->getReferralLink(),
             $tracking->getLastState(),
             $tracking->getLastStatus()
         );

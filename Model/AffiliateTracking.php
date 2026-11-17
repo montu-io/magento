@@ -107,6 +107,27 @@ class AffiliateTracking extends AbstractModel
     }
 
     /**
+     * Get referral link
+     *
+     * @return string|null
+     */
+    public function getReferralLink(): ?string
+    {
+        return $this->getData('referral_link');
+    }
+
+    /**
+     * Set referral link
+     *
+     * @param string|null $referralLink
+     * @return $this
+     */
+    public function setReferralLink(?string $referralLink): self
+    {
+        return $this->setData('referral_link', $referralLink);
+    }
+
+    /**
      * Get created at timestamp
      *
      * @return string|null

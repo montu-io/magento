@@ -2,8 +2,9 @@
 /**
  * Montu Affiliate Tracking Extension - Save Affiliate Code to Quote Observer
  *
- * Writes the shopper's affiliate cookie on the quote's tracking row, so
- * EventRecorder finds the code by quote id when the order is committed.
+ * Writes the shopper's affiliate cookies (code and referral link) on the quote's
+ * tracking row, so EventRecorder finds them by quote id when the order is committed.
+ * Last click wins: whenever a cookie differs from the row, both are overwritten.
  * Registered for the storefront and the REST checkout only
  * (etc/frontend/events.xml, etc/webapi_rest/events.xml), never the admin:
  * - checkout_cart_save_after: the cart is saved with the cookie present;
@@ -28,6 +29,7 @@ use Magento\Quote\Model\Quote;
 use Montu\Affiliate\Api\AffiliateTrackingRepositoryInterface;
 use Montu\Affiliate\Model\AffiliateCode;
 use Montu\Affiliate\Model\Config;
+use Montu\Affiliate\Model\ReferralLink;
 use Psr\Log\LoggerInterface;
 
 class SaveAffiliateToQuote implements ObserverInterface
@@ -96,14 +98,15 @@ class SaveAffiliateToQuote implements ObserverInterface
                 return;
             }
 
-            // The first code captured on a cart is kept.
-            $quoteId = (int) $quote->getId();
-            if (!$this->trackingRepository->existsForQuote($quoteId)) {
-                $this->trackingRepository->saveByQuoteId($quoteId, $code);
-            }
+            // The link is only read next to a code; a code without one stores no link.
+            $link = ReferralLink::fromCookie(
+                $this->cookieManager->getCookie($this->config->getLinkCookieName($storeId))
+            );
+
+            $this->trackingRepository->saveByQuoteId((int) $quote->getId(), $code, $link);
         } catch (\Throwable $e) {
             $this->logger->error(
-                '[Montu Affiliate] Error saving the affiliate code on the quote (suppressed): ' . $e->getMessage()
+                '[Montu Affiliate] Error saving the affiliate code and link on the quote (suppressed): ' . $e->getMessage()
             );
         }
     }

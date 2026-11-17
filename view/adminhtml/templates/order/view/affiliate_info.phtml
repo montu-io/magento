@@ -25,6 +25,12 @@ $affiliateCode = $block->escapeHtml($block->getAffiliateCode());
                     <th><?= $block->escapeHtml(__('Affiliate Code')) ?></th>
                     <td><strong><?= $block->escapeHtml($affiliateCode) ?></strong></td>
                 </tr>
+                <?php if ($block->hasReferralLink()): ?>
+                <tr>
+                    <th><?= $block->escapeHtml(__('Referral Link')) ?></th>
+                    <td><?= $block->escapeHtml($block->getReferralLink()) ?></td>
+                </tr>
+                <?php endif; ?>
             </table>
         </div>
     </div>

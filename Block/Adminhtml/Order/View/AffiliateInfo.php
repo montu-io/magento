@@ -15,6 +15,7 @@ use Magento\Backend\Block\Template\Context;
 use Magento\Framework\Registry;
 use Magento\Sales\Model\Order;
 use Montu\Affiliate\Api\AffiliateTrackingRepositoryInterface;
+use Montu\Affiliate\Model\TrackingState;
 
 class AffiliateInfo extends Template
 {
@@ -29,14 +30,14 @@ class AffiliateInfo extends Template
     private AffiliateTrackingRepositoryInterface $trackingRepository;
 
     /**
-     * @var string|null
+     * @var TrackingState|null
      */
-    private ?string $affiliateCode = null;
+    private ?TrackingState $tracking = null;
 
     /**
      * @var bool
      */
-    private bool $affiliateCodeLoaded = false;
+    private bool $trackingLoaded = false;
 
     /**
      * @param Context $context
@@ -72,16 +73,9 @@ class AffiliateInfo extends Template
      */
     public function getAffiliateCode(): ?string
     {
-        if (!$this->affiliateCodeLoaded) {
-            $this->affiliateCodeLoaded = true;
-            $order = $this->getOrder();
-            
-            if ($order && $order->getId()) {
-                $this->affiliateCode = $this->trackingRepository->getByOrderId((int) $order->getId());
-            }
-        }
-        
-        return $this->affiliateCode;
+        $tracking = $this->getTracking();
+
+        return $tracking !== null ? $tracking->getAffiliateCode() : null;
     }
 
     /**
@@ -92,5 +86,46 @@ class AffiliateInfo extends Template
     public function hasAffiliateCode(): bool
     {
         return !empty($this->getAffiliateCode());
+    }
+
+    /**
+     * Get referral link from tracking table
+     *
+     * @return string|null
+     */
+    public function getReferralLink(): ?string
+    {
+        $tracking = $this->getTracking();
+
+        return $tracking !== null ? $tracking->getReferralLink() : null;
+    }
+
+    /**
+     * Check if a referral link exists
+     *
+     * @return bool
+     */
+    public function hasReferralLink(): bool
+    {
+        return !empty($this->getReferralLink());
+    }
+
+    /**
+     * The order's tracking row, looked up once per view
+     *
+     * @return TrackingState|null
+     */
+    private function getTracking(): ?TrackingState
+    {
+        if (!$this->trackingLoaded) {
+            $this->trackingLoaded = true;
+            $order = $this->getOrder();
+
+            if ($order && $order->getId()) {
+                $this->tracking = $this->trackingRepository->findByOrderId((int) $order->getId());
+            }
+        }
+
+        return $this->tracking;
     }
 }

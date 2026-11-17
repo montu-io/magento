@@ -173,6 +173,18 @@ class Index implements HttpGetActionInterface
 
             $this->cookieManager->setPublicCookie($cookieName, $code, $metadata);
 
+            // A visit with a code and no link (this route has none) replaces any previous
+            // click, so the old click's link must not stay next to the new code. Deleted with
+            // the same flags the cookie is set with.
+            /** @var PublicCookieMetadata $deleteMetadata */
+            $deleteMetadata = $this->cookieMetadataFactory->createPublicCookieMetadata();
+            $deleteMetadata->setPath('/');
+            $deleteMetadata->setSameSite('Lax');
+            if ($this->request->isSecure()) {
+                $deleteMetadata->setSecure(true);
+            }
+            $this->cookieManager->deleteCookie($this->config->getLinkCookieName(), $deleteMetadata);
+
             $this->logger->debug(
                 '[Montu Affiliate] Storefront route set affiliate cookie',
                 ['affiliate_code' => $code]

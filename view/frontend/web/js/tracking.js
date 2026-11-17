@@ -1,7 +1,9 @@
 /**
  * Montu Affiliate Tracking Extension
  *
- * Captures affiliate code from URL parameter and stores in cookie.
+ * Captures the affiliate code (and the ambassador's referral link, "ml") from the
+ * URL parameters and stores them in cookies. The link only means something next
+ * to the code, and both are replaced together (last click wins).
  *
  * @category  Montu
  * @package   Montu_Affiliate
@@ -14,6 +16,9 @@
 
     // Same format rule as Model/AffiliateCode.php.
     var CODE_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
+
+    // Same format rule as Model/ReferralLink.php.
+    var LINK_PATTERN = /^[A-Za-z0-9]{1,64}$/;
 
     /**
      * Read the configuration from the data attribute of this script tag
@@ -72,6 +77,20 @@
     }
 
     /**
+     * Delete a cookie (same path and flags it was set with)
+     * @param {string} name - Cookie name
+     */
+    function deleteCookie(name) {
+        var cookieString = name + '=; Max-Age=0; path=/; SameSite=Lax';
+
+        if (window.location.protocol === 'https:') {
+            cookieString += '; Secure';
+        }
+
+        document.cookie = cookieString;
+    }
+
+    /**
      * Get cookie value
      * @param {string} name - Cookie name
      * @returns {string|null}
@@ -107,13 +126,31 @@
 
         var affiliateCode = getUrlParameter(config.urlParameter);
 
-        if (affiliateCode && CODE_PATTERN.test(affiliateCode)) {
-            // Check if already have the same code
-            var existingCode = getCookie(config.cookieName);
+        if (!affiliateCode || !CODE_PATTERN.test(affiliateCode)) {
+            return;
+        }
 
-            if (existingCode !== affiliateCode) {
-                // Save affiliate code to cookie
-                setCookie(config.cookieName, affiliateCode, config.cookieLifetimeDays);
+        // The link is only read next to a valid code; a plain store link has none.
+        var referralLink = config.linkParameter ? getUrlParameter(config.linkParameter) : null;
+        if (!referralLink || !LINK_PATTERN.test(referralLink)) {
+            referralLink = null;
+        }
+
+        // A different link under the same code is a new click too.
+        var existingCode = getCookie(config.cookieName);
+        var existingLink = config.linkCookieName ? getCookie(config.linkCookieName) : null;
+
+        if (existingCode === affiliateCode && existingLink === referralLink) {
+            return;
+        }
+
+        setCookie(config.cookieName, affiliateCode, config.cookieLifetimeDays);
+
+        if (config.linkCookieName) {
+            if (referralLink) {
+                setCookie(config.linkCookieName, referralLink, config.cookieLifetimeDays);
+            } else {
+                deleteCookie(config.linkCookieName);
             }
         }
     }

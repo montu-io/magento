@@ -66,6 +66,16 @@ class Config
     private const XML_PATH_STOREFRONT_FALLBACK = 'montu_affiliate/storefront/fallback';
     private const XML_PATH_STOREFRONT_HIDE_OUT_OF_STOCK = 'montu_affiliate/storefront/hide_out_of_stock';
 
+    /**
+     * URL parameter carrying the ambassador's referral link, next to the affiliate parameter
+     */
+    public const REFERRAL_LINK_PARAMETER = 'ml';
+
+    /**
+     * The referral link cookie is named after the affiliate code cookie
+     */
+    private const LINK_COOKIE_SUFFIX = '_link';
+
     public const ORDERS_AFFILIATE_CODE = 'affiliate_code';
     public const ORDERS_AFFILIATE_CODE_OR_COUPON = 'affiliate_code_or_coupon';
     public const ORDERS_AFFILIATE_CODE_OR_COUPON_PREFIX = 'affiliate_code_or_coupon_prefix';
@@ -145,6 +155,17 @@ class Config
             ScopeInterface::SCOPE_STORE,
             $storeId
         ) ?: '_montu_aff_ref_code';
+    }
+
+    /**
+     * Get the referral link cookie name (the code cookie's name + "_link")
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getLinkCookieName(?int $storeId = null): string
+    {
+        return $this->getCookieName($storeId) . self::LINK_COOKIE_SUFFIX;
     }
 
     /**

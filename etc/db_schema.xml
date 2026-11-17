@@ -30,6 +30,11 @@
         <column xsi:type="varchar" name="affiliate_code" nullable="true" length="255" 
                 comment="Affiliate Referral Code"/>
         
+        <!-- The ambassador's link slug ("ml" parameter) of the same click as affiliate_code;
+             NULL when the shopper came through a plain store link -->
+        <column xsi:type="varchar" name="referral_link" nullable="true" length="64"
+                comment="Referral Link Slug"/>
+        
         <!-- Last order snapshot reported to Montu; drives order.updated de-duplication.
              A row is "tracked" (order.placed recorded) once fingerprint is set. -->
         <column xsi:type="varchar" name="fingerprint" nullable="true" length="64"

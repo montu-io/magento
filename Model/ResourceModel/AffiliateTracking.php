@@ -45,6 +45,7 @@ class AffiliateTracking extends AbstractDb
 
         return is_array($row) ? new TrackingState(
             $row['affiliate_code'] !== null ? (string) $row['affiliate_code'] : null,
+            $row['referral_link'] !== null ? (string) $row['referral_link'] : null,
             $row['fingerprint'] !== null ? (string) $row['fingerprint'] : null,
             $row['last_state'] !== null ? (string) $row['last_state'] : null,
             $row['last_status'] !== null ? (string) $row['last_status'] : null
@@ -52,28 +53,38 @@ class AffiliateTracking extends AbstractDb
     }
 
     /**
-     * The affiliate code captured on a quote (written by SaveAffiliateToQuote)
+     * The affiliate code and referral link captured on a quote and not yet linked
+     * to an order (written by SaveAffiliateToQuote); an order's own row is read
+     * through findByOrderId()
      *
      * @param int $quoteId
-     * @return string|null
+     * @return TrackingState|null Null when the quote has no code
      */
-    public function findCodeByQuoteId(int $quoteId): ?string
+    public function findByQuoteId(int $quoteId): ?TrackingState
     {
         if ($quoteId <= 0) {
             return null;
         }
 
         $connection = $this->getConnection();
-        $code = $connection->fetchOne(
+        $row = $connection->fetchRow(
             $connection->select()
-                ->from($this->getMainTable(), ['affiliate_code'])
+                ->from($this->getMainTable(), ['affiliate_code', 'referral_link'])
                 ->where('quote_id = ?', $quoteId)
+                ->where('order_id IS NULL')
                 ->where('affiliate_code IS NOT NULL')
+                ->where("affiliate_code <> ''")
                 ->order('entity_id ASC')
                 ->limit(1)
         );
 
-        return $code !== false && $code !== null && $code !== '' ? (string) $code : null;
+        return is_array($row) ? new TrackingState(
+            (string) $row['affiliate_code'],
+            $row['referral_link'] !== null ? (string) $row['referral_link'] : null,
+            null,
+            null,
+            null
+        ) : null;
     }
 
     /**
@@ -84,6 +95,7 @@ class AffiliateTracking extends AbstractDb
      * @param int $orderId
      * @param int $quoteId
      * @param string $affiliateCode Empty for coupon-only / "all orders" orders
+     * @param string|null $referralLink Link of the same click as the code (ignored without a code)
      * @param string $fingerprint
      * @param string $state
      * @param string $status
@@ -93,6 +105,7 @@ class AffiliateTracking extends AbstractDb
         int $orderId,
         int $quoteId,
         string $affiliateCode,
+        ?string $referralLink,
         string $fingerprint,
         string $state,
         string $status
@@ -128,7 +141,11 @@ class AffiliateTracking extends AbstractDb
 
         $connection->insert(
             $this->getMainTable(),
-            $snapshot + ['order_id' => $orderId, 'affiliate_code' => $affiliateCode !== '' ? $affiliateCode : null]
+            $snapshot + [
+                'order_id' => $orderId,
+                'affiliate_code' => $affiliateCode !== '' ? $affiliateCode : null,
+                'referral_link' => $affiliateCode !== '' ? $referralLink : null,
+            ]
         );
     }
 

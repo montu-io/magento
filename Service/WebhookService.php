@@ -23,7 +23,7 @@ use Psr\Log\LoggerInterface;
 
 class WebhookService
 {
-    public const WEBHOOK_VERSION = '2.0';
+    public const WEBHOOK_VERSION = '2.1';
 
     /**
      * Seconds to open the connection to Montu

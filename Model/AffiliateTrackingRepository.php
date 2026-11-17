@@ -50,19 +50,43 @@ class AffiliateTrackingRepository implements AffiliateTrackingRepositoryInterfac
     /**
      * @inheritdoc
      */
-    public function saveByQuoteId(int $quoteId, string $affiliateCode): void
+    public function saveByQuoteId(int $quoteId, string $affiliateCode, ?string $referralLink): void
     {
         try {
-            // A plain insert, no model save: save() opens and rolls back its own
-            // transaction, which would doom a caller's one on failure.
-            $this->resource->getConnection()->insert(
-                $this->resource->getMainTable(),
-                ['quote_id' => $quoteId, 'affiliate_code' => $affiliateCode]
+            // Plain insert / update, no model save: save() opens and rolls back its
+            // own transaction, which would doom a caller's one on failure.
+            $connection = $this->resource->getConnection();
+            $table = $this->resource->getMainTable();
+            $row = $connection->fetchRow(
+                $connection->select()
+                    ->from($table, ['entity_id', 'affiliate_code', 'referral_link'])
+                    ->where('quote_id = ?', $quoteId)
+                    ->where('order_id IS NULL')
+                    ->order('entity_id ASC')
+                    ->limit(1)
             );
+
+            // Only the row not yet linked to an order: an order's own row is never touched, so a
+            // restored quote (failed redirect payment) gets a new row for its next click.
+            if (!is_array($row)) {
+                $connection->insert(
+                    $table,
+                    ['quote_id' => $quoteId, 'affiliate_code' => $affiliateCode, 'referral_link' => $referralLink]
+                );
+            } elseif ($row['affiliate_code'] !== $affiliateCode || $row['referral_link'] !== $referralLink) {
+                // Last click wins: the code and its link are replaced together.
+                $connection->update(
+                    $table,
+                    ['affiliate_code' => $affiliateCode, 'referral_link' => $referralLink],
+                    ['entity_id = ?' => (int) $row['entity_id']]
+                );
+            } else {
+                return;
+            }
 
             $this->logger->debug(
                 '[Montu Affiliate] Saved affiliate tracking for quote',
-                ['quote_id' => $quoteId, 'affiliate_code' => $affiliateCode]
+                ['quote_id' => $quoteId, 'affiliate_code' => $affiliateCode, 'referral_link' => $referralLink]
             );
         } catch (\Throwable $e) {
             $this->logger->error(
@@ -131,20 +155,16 @@ class AffiliateTrackingRepository implements AffiliateTrackingRepositoryInterfac
     /**
      * @inheritdoc
      */
-    public function existsForQuote(int $quoteId): bool
+    public function findByOrderId(int $orderId): ?TrackingState
     {
         try {
-            $collection = $this->collectionFactory->create();
-            $collection->addFieldToFilter('quote_id', $quoteId);
-            
-            return $collection->getSize() > 0;
+            return $this->resource->findByOrderId($orderId);
         } catch (\Throwable $e) {
             $this->logger->error(
-                '[Montu Affiliate] Error checking quote existence: ' . $e->getMessage(),
-                ['quote_id' => $quoteId, 'exception' => $e]
+                '[Montu Affiliate] Error finding tracking by order ID: ' . $e->getMessage(),
+                ['order_id' => $orderId, 'exception' => $e]
             );
-            return false;
+            return null;
         }
     }
 }
-

@@ -109,7 +109,7 @@ Cada grupo se puede sobrescribir por website / store view (salvo los marcados *g
 |-------|-------------|---------|
 | Enable Module | Activa la extensión | No |
 | URL Parameter Name | Parámetro a capturar | `_m_aff` |
-| Cookie Name | Nombre de la cookie | `_montu_aff_ref_code` |
+| Cookie Name | Nombre de la cookie del código (la del enlace de referido es la misma + `_link`) | `_montu_aff_ref_code` |
 | Cookie Lifetime (Days) | Días de duración | 15 |
 
 **Webhook Connection**
@@ -211,14 +211,17 @@ por variables CSS.
 Un visitante puede entrar con un código de afiliado de **dos formas**, y en ambas se
 guarda la cookie con el código:
 
-1. **Query param** — `https://tienda.com/?_m_aff=ABC123` (capturado por JS).
+1. **Query param** — `https://tienda.com/?_m_aff=ABC123` (capturado por JS). Los enlaces de los
+   embajadores traen además `&ml=<slug>` (el enlace específico que compartieron), que se guarda en
+   una segunda cookie (`_montu_aff_ref_code_link`).
 2. **Ruta storefront** — `https://tienda.com/storefront/ABC123`, que además **renderiza
    una página con los productos que ese afiliado recomienda**.
 
 La ruta la resuelve un **router personalizado** (`Controller/Router.php`) que toma el
 código del path y reenvía a `Controller/Storefront/Index.php`. El controlador valida el
 código (`^[a-zA-Z0-9_\-]{1,100}$`), **escribe la cookie en el servidor** (mismo
-nombre/duración que la captura por JS) y renderiza la página, declarada
+nombre/duración que la captura por JS, y borra la cookie del enlace de referido, porque esta ruta no trae
+`ml`) y renderiza la página, declarada
 **`cacheable="false"`** para que el Full Page Cache / Fastly nunca la sirva cacheada.
 
 Los productos se obtienen vía `Service/RecommendationClient.php` desde el endpoint de
@@ -244,20 +247,26 @@ cortos propios (2 s en total, 1 s de conexión).
 ## 🔄 Cómo Funciona
 
 ```
-?_m_aff=ABC123 → JS guarda cookie
-   → (carrito / pedido) → código guardado por quote
+?_m_aff=ABC123&ml=aB3dE5fG7h → JS guarda cookies (código y enlace)
+   → (carrito / pedido) → código y enlace guardados por quote
    → (pedido guardado / cambios) → RecordOrderEvents → EventRecorder → fila pending en montu_affiliate_webhook_log
    → Cron/ProcessWebhooks (grupo montu_affiliate) → POST firmado (HMAC-SHA256) a tu endpoint
 ```
 
-1. **Captura** — `view/frontend/web/js/tracking.js` guarda `?_m_aff=` en cookie (la configuración
-   viaja en un atributo `data-*` del `<script>`, compatible con el CSP estricto de Magento 2.4.7+).
+1. **Captura** — `view/frontend/web/js/tracking.js` guarda `?_m_aff=` en cookie y, junto a él,
+   `?ml=` (`[A-Za-z0-9]{1,64}`) en una segunda cookie (la configuración viaja en un atributo `data-*`
+   del `<script>`, compatible con el CSP estricto de Magento 2.4.7+). `ml` solo vale junto al código.
+   **Gana el último clic**: una visita con el código reemplaza código y enlace juntos (otro `ml` con el
+   mismo código es un clic nuevo; sin `ml` se borra el enlace anterior).
 2. **Persistir al carrito** — `Observer/SaveAffiliateToQuote`, en `checkout_cart_save_after` y en
    `sales_model_service_quote_submit_before` (este último guarda el código cuando ningún guardado
    del carrito lo vio, antes de que exista el pedido). Solo en el storefront y el checkout REST
    (`etc/frontend/events.xml`, `etc/webapi_rest/events.xml`), nunca en el admin: un pedido creado
    desde el admin no toma la cookie del propio administrador. Lee la cookie primero (un visitante
-   sin cookie no cuesta ninguna consulta) y conserva el primer código capturado en el carrito.
+   sin cookie no cuesta ninguna consulta) y escribe código y enlace en `montu_affiliate_tracking`;
+   gana el último clic: si cualquiera de las cookies difiere de la fila del carrito, se sobrescriben
+   ambos. La fila de un carrito que ya es pedido no cambia: un carrito restaurado (pago por redirección
+   fallido) recibe una fila nueva en su siguiente clic.
 3. **Vincular a orden** — `Observer/CopyAffiliateToOrder` (`sales_model_service_quote_submit_success`)
    vincula la fila del quote con el pedido (normalmente ya está vinculada).
 4. **Registrar eventos** — `Observer/RecordOrderEvents`, declarado en `etc/events.xml` sobre dos
@@ -331,7 +340,7 @@ El contrato completo (campos, modos de datos del cliente, hashes) está en
 
 ```
 Content-Type: application/json
-X-Montu-Webhook-Version: 2.0
+X-Montu-Webhook-Version: 2.1
 X-Montu-Event: order.placed | order.updated | creditmemo.created
 X-Montu-Event-Id: <uuid del evento>
 X-Montu-Module-Version: <versión instalada del módulo>
@@ -356,7 +365,7 @@ multi-tienda puede tener una clave por tienda.
 
 ```json
 {
-    "webhook_version": "2.0",
+    "webhook_version": "2.1",
     "event": "order.updated",
     "event_id": "6f1c...-uuid4",
     "timestamp": "2026-11-12T13:09:00+00:00",
@@ -365,7 +374,7 @@ multi-tienda puede tener una clave por tienda.
     "store": { "code": "default", "name": "Mi Tienda", "base_url": "https://tutienda.com/", "currency": "CLP", "id": 1, "website_code": "base" },
     "order": { "increment_id": "000000123", "grand_total": 150.00, "status": "pagado", "state": "processing" },
     "transition": { "from_state": "new", "from_status": "pending", "to_state": "processing", "to_status": "pagado" },
-    "affiliate": { "code": "ABC123" },
+    "affiliate": { "code": "ABC123", "link": "aB3dE5fG7h" },
     "customer": { "id": 55, "email": null, "email_hash": "9f86d0...", "phone_hash": "2c26b4..." },
     "items": [],
     "billing_address": {},

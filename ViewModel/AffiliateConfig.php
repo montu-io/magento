@@ -59,6 +59,26 @@ class AffiliateConfig implements ArgumentInterface
     }
 
     /**
+     * Get the referral link URL parameter name
+     *
+     * @return string
+     */
+    public function getLinkParameter(): string
+    {
+        return Config::REFERRAL_LINK_PARAMETER;
+    }
+
+    /**
+     * Get the referral link cookie name
+     *
+     * @return string
+     */
+    public function getLinkCookieName(): string
+    {
+        return $this->config->getLinkCookieName();
+    }
+
+    /**
      * Get cookie lifetime in days
      *
      * @return int
@@ -78,6 +98,8 @@ class AffiliateConfig implements ArgumentInterface
         return json_encode([
             'urlParameter' => $this->getUrlParameter(),
             'cookieName' => $this->getCookieName(),
+            'linkParameter' => $this->getLinkParameter(),
+            'linkCookieName' => $this->getLinkCookieName(),
             'cookieLifetimeDays' => $this->getCookieLifetimeDays()
         ]);
     }

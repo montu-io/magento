@@ -5,6 +5,7 @@
             "order_id": true,
             "quote_id": true,
             "affiliate_code": true,
+            "referral_link": true,
             "fingerprint": true,
             "last_state": true,
             "last_status": true,

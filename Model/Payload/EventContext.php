@@ -51,6 +51,11 @@ class EventContext
     /**
      * @var string|null
      */
+    public ?string $referralLink;
+
+    /**
+     * @var string|null
+     */
     public ?string $previousState;
 
     /**
@@ -70,6 +75,7 @@ class EventContext
      * @param string $occurredAt ISO-8601
      * @param Order $order
      * @param string $affiliateCode Empty when the order only has a coupon
+     * @param string|null $referralLink Link slug of the same click as the code (null when none)
      * @param string|null $previousState State at the last recorded event (null on order.placed)
      * @param string|null $previousStatus Status at the last recorded event (null on order.placed)
      * @param Creditmemo|null $creditmemo Only for creditmemo.created
@@ -81,6 +87,7 @@ class EventContext
         string $occurredAt,
         Order $order,
         string $affiliateCode,
+        ?string $referralLink,
         ?string $previousState = null,
         ?string $previousStatus = null,
         ?Creditmemo $creditmemo = null
@@ -91,6 +98,7 @@ class EventContext
         $this->occurredAt = $occurredAt;
         $this->order = $order;
         $this->affiliateCode = $affiliateCode;
+        $this->referralLink = $referralLink;
         $this->previousState = $previousState;
         $this->previousStatus = $previousStatus;
         $this->creditmemo = $creditmemo;

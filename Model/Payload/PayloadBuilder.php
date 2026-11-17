@@ -83,7 +83,7 @@ class PayloadBuilder
                 'to_state' => $order->getState(),
                 'to_status' => $order->getStatus(),
             ],
-            'affiliate' => ['code' => $context->affiliateCode],
+            'affiliate' => ['code' => $context->affiliateCode, 'link' => $context->referralLink],
             'customer' => $this->customer($order, $mode, $context->getStoreId()),
             'items' => $this->items($order),
             'billing_address' => $this->address($order->getBillingAddress(), $mode),

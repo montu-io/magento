@@ -1,4 +1,4 @@
-# Montu Affiliate webhooks — contract v2.0
+# Montu Affiliate webhooks — contract v2.1
 
 What the `Montu_Affiliate` module sends to Montu, and the rules both sides rely
 on. The module only reports **raw facts** about an order; deciding whether an
@@ -13,7 +13,7 @@ Change the module (`Model/Payload/*`) and the backend
 | Header | Value |
 |---|---|
 | `Content-Type` | `application/json` |
-| `X-Montu-Webhook-Version` | `2.0` |
+| `X-Montu-Webhook-Version` | `2.1` |
 | `X-Montu-Event` | the event type (`order.placed`, `order.updated`, `creditmemo.created`, or a catalog event below) |
 | `X-Montu-Event-Id` | the event's UUID (same as `event_id` in the body) |
 | `X-Montu-Module-Version` | the installed module version, e.g. `2.0.0` |
@@ -82,7 +82,7 @@ v2 is a **superset of v1**: every v1 field keeps its name, type and meaning
 
 ```jsonc
 {
-  "webhook_version": "2.0",
+  "webhook_version": "2.1",
   "event": "order.updated",                 // order.placed | order.updated | creditmemo.created
   "event_id": "6f1c…-uuid4",                // unique per event; Montu may dedupe on it
   "timestamp": "2026-11-12T13:09:00+00:00", // ISO-8601, SEND time (set on every attempt; Montu rejects > 5 min old)
@@ -121,7 +121,10 @@ v2 is a **superset of v1**: every v1 field keeps its name, type and meaning
     "to_state": "processing", "to_status": "pagado"
   },
 
-  "affiliate": { "code": "ANA" },          // "" when the order only has a coupon (as v1)
+  "affiliate": {
+    "code": "ANA",                         // "" when the order only has a coupon (as v1)
+    "link": "aB3dE5fG7h"                   // v2.1, slug of the ambassador's referral link (`ml`); null when the click had none
+  },
 
   "customer": {
     // v1 (personal fields depend on Customer data mode)
@@ -169,6 +172,23 @@ v2 is a **superset of v1**: every v1 field keeps its name, type and meaning
   ]
 }
 ```
+
+### Affiliate attribution (code and referral link)
+
+An ambassador's link looks like `https://dbs.cl/<product>?_m_aff=camila&ml=aB3dE5fG7h`:
+`_m_aff` (configurable) is the affiliate code, `ml` the slug of the specific link they shared
+(`[A-Za-z0-9]{1,64}`). The module captures both in two cookies and reports them in
+`affiliate.code` / `affiliate.link`.
+
+- `ml` only means something next to the code parameter; `ml` alone is ignored.
+- **Last click wins**, for the code and the link together. A visit with the code parameter
+  replaces what was stored: a different `ml` under the same code is a new click, and the code
+  parameter without `ml` (a plain store link, or the `/storefront/{code}` route) clears the previous
+  link. The cart keeps the latest click until it becomes an order; from then on the order's
+  attribution does not change (a cart restored after a failed redirect payment starts a new
+  attribution with its next click, so a second order never inherits the first one's).
+- `affiliate.link` is the same on every event of an order (`order.placed`, `order.updated`,
+  `creditmemo.created`) and `null` when there is none, including orders with only a coupon.
 
 ### Customer data mode
 
@@ -319,6 +339,8 @@ import delete). It can name a variant (see "Deletions are sent alone").
 
 ## Versioning
 
-- `webhook_version` is `2.0` for this contract. New optional fields can be added
+- `webhook_version` is `2.1` for this contract. New optional fields can be added
   in a minor version; removing or changing a field's meaning is a major version.
+- `2.1` over `2.0`: `affiliate.link` (new, nullable). Nothing else changed, so a receiver that
+  ignores unknown fields reads `2.1` bodies as `2.0`.
 - Montu keeps accepting `1.0` bodies (`order.placed` only).

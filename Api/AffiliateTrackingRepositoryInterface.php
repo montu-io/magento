@@ -10,16 +10,22 @@ declare(strict_types=1);
 
 namespace Montu\Affiliate\Api;
 
+use Montu\Affiliate\Model\TrackingState;
+
 interface AffiliateTrackingRepositoryInterface
 {
     /**
-     * Save affiliate code for a quote
+     * Save the affiliate code and referral link of the shopper's last click for a
+     * quote: inserts the quote's row, or overwrites both when either differs from
+     * what the row holds. Only a row not yet linked to an order counts: an order's
+     * own row is never touched, a restored quote gets a new one.
      *
      * @param int $quoteId
      * @param string $affiliateCode
+     * @param string|null $referralLink Null when the click carried no valid link
      * @return void
      */
-    public function saveByQuoteId(int $quoteId, string $affiliateCode): void;
+    public function saveByQuoteId(int $quoteId, string $affiliateCode, ?string $referralLink): void;
 
     /**
      * Link existing quote tracking record to an order
@@ -39,12 +45,12 @@ interface AffiliateTrackingRepositoryInterface
     public function getByOrderId(int $orderId): ?string;
 
     /**
-     * Check if tracking exists for quote
+     * Get the tracking row of an order (affiliate code, referral link, last snapshot)
      *
-     * @param int $quoteId
-     * @return bool
+     * @param int $orderId
+     * @return TrackingState|null
      */
-    public function existsForQuote(int $quoteId): bool;
+    public function findByOrderId(int $orderId): ?TrackingState;
 
 }
 

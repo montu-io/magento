@@ -11,9 +11,10 @@ declare(strict_types=1);
 namespace Montu\Affiliate\Model;
 
 /**
- * What montu_affiliate_tracking knows about an order: its affiliate code and
- * the snapshot recorded with the last event (the order is "tracked" once
- * order.placed was recorded, which is when the fingerprint is first set).
+ * What montu_affiliate_tracking knows about an order: its affiliate code, the
+ * referral link of the same click and the snapshot recorded with the last
+ * event (the order is "tracked" once order.placed was recorded, which is when
+ * the fingerprint is first set).
  */
 class TrackingState
 {
@@ -21,6 +22,11 @@ class TrackingState
      * @var string|null
      */
     private ?string $affiliateCode;
+
+    /**
+     * @var string|null
+     */
+    private ?string $referralLink;
 
     /**
      * @var string|null
@@ -39,17 +45,20 @@ class TrackingState
 
     /**
      * @param string|null $affiliateCode
+     * @param string|null $referralLink
      * @param string|null $fingerprint
      * @param string|null $lastState
      * @param string|null $lastStatus
      */
     public function __construct(
         ?string $affiliateCode,
+        ?string $referralLink,
         ?string $fingerprint,
         ?string $lastState,
         ?string $lastStatus
     ) {
         $this->affiliateCode = $affiliateCode;
+        $this->referralLink = $referralLink;
         $this->fingerprint = $fingerprint;
         $this->lastState = $lastState;
         $this->lastStatus = $lastStatus;
@@ -61,6 +70,14 @@ class TrackingState
     public function getAffiliateCode(): ?string
     {
         return $this->affiliateCode;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getReferralLink(): ?string
+    {
+        return $this->referralLink;
     }
 
     /**

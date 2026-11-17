@@ -42,5 +42,9 @@
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <comment>Send an event when a category is deleted.</comment>
         </field>
+        <field id="brand_attribute" translate="label comment" type="text" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Brand attribute code</label>
+            <comment>Code of the product attribute that holds each product's brand (e.g. manufacturer or marca), sent to Montu with every product. Leave empty to send no brands.</comment>
+        </field>
     </group>
 </include>

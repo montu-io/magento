@@ -32,6 +32,7 @@ use Magento\Framework\UrlInterface;
 use Magento\Store\Model\Store;
 use Montu\Affiliate\Model\Catalog\ChangeDetector;
 use Montu\Affiliate\Model\Catalog\VariantLinks;
+use Montu\Affiliate\Model\Config;
 use Montu\Affiliate\Service\WebhookService;
 
 class CatalogPayloadBuilder
@@ -94,6 +95,11 @@ class CatalogPayloadBuilder
     private VariantLinks $variantLinks;
 
     /**
+     * @var Config
+     */
+    private Config $config;
+
+    /**
      * Option labels per "attribute code:store id", read once per run
      *
      * @var array<string, array<string, string>|null>
@@ -108,6 +114,7 @@ class CatalogPayloadBuilder
      * @param ResourceConnection $resourceConnection
      * @param EavConfig $eavConfig
      * @param VariantLinks $variantLinks
+     * @param Config $config
      */
     public function __construct(
         ProductCollectionFactory $productCollectionFactory,
@@ -116,7 +123,8 @@ class CatalogPayloadBuilder
         CategoryUrlPathGenerator $categoryUrlPathGenerator,
         ResourceConnection $resourceConnection,
         EavConfig $eavConfig,
-        VariantLinks $variantLinks
+        VariantLinks $variantLinks,
+        Config $config
     ) {
         $this->productCollectionFactory = $productCollectionFactory;
         $this->categoryCollectionFactory = $categoryCollectionFactory;
@@ -125,6 +133,7 @@ class CatalogPayloadBuilder
         $this->resourceConnection = $resourceConnection;
         $this->eavConfig = $eavConfig;
         $this->variantLinks = $variantLinks;
+        $this->config = $config;
     }
 
     /**
@@ -190,10 +199,15 @@ class CatalogPayloadBuilder
     public function products(Store $store, array $ids): array
     {
         $storeId = (int) $store->getId();
+        $brandCode = $this->brandAttributeCode($storeId);
         $collection = $this->productCollectionFactory->create();
         $collection->setStoreId($storeId)
             ->addIdFilter($ids)
-            ->addAttributeToSelect(array_merge(ChangeDetector::PRODUCT_ATTRIBUTES, ['url_path']))
+            ->addAttributeToSelect(array_merge(
+                ChangeDetector::PRODUCT_ATTRIBUTES,
+                ['url_path'],
+                $brandCode !== null ? [$brandCode] : []
+            ))
             ->addMediaGalleryData()
             ->addCategoryIds();
 
@@ -236,6 +250,8 @@ class CatalogPayloadBuilder
                 'special_from_date' => $product->getData('special_from_date') ?: null,
                 'special_to_date' => $product->getData('special_to_date') ?: null,
                 'category_ids' => $this->sortedIds((array) $product->getCategoryIds()),
+                'brand' => $brandCode !== null ? $this->brand($brandCode, $product->getData($brandCode), $storeId)
+                    : null,
                 'created_at' => $product->getCreatedAt(),
                 'updated_at' => $product->getUpdatedAt(),
                 'configurable_options' => $variants[$id]['options'] ?? [],
@@ -518,6 +534,62 @@ class CatalogPayloadBuilder
         }
 
         return $store->getBaseUrl(UrlInterface::URL_TYPE_MEDIA, true) . 'catalog/category/' . $value;
+    }
+
+    /**
+     * The store view's brand attribute code, or null when none is configured, the
+     * attribute does not exist or its options cannot be read (e.g. a source model
+     * left behind by an uninstalled extension): the brand is optional and must
+     * never stop the product feed
+     *
+     * @param int $storeId
+     * @return string|null
+     */
+    private function brandAttributeCode(int $storeId): ?string
+    {
+        $code = $this->config->getBrandAttributeCode($storeId);
+        if ($code === '') {
+            return null;
+        }
+        try {
+            if ((int) $this->eavConfig->getAttribute(Product::ENTITY, $code)->getAttributeId() <= 0) {
+                return null;
+            }
+            $this->optionLabels($code, $storeId);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $code;
+    }
+
+    /**
+     * The product's brand: the option id and its label in the store view for a
+     * select / multiselect attribute (the first option of a multiselect), the
+     * text as label and no id for a plain text attribute; null when there is no value
+     *
+     * @param string $code
+     * @param mixed $value
+     * @param int $storeId
+     * @return array{id: string|null, label: string}|null
+     */
+    private function brand(string $code, $value, int $storeId): ?array
+    {
+        if (is_array($value)) {
+            $value = implode(',', $value);
+        }
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+        $labels = $this->optionLabels($code, $storeId);
+        if ($labels === null) {
+            return ['id' => null, 'label' => $value];
+        }
+        $id = trim(explode(',', $value)[0]);
+        $label = trim($labels[$id] ?? '');
+
+        return $id !== '' && $label !== '' ? ['id' => $id, 'label' => $label] : null;
     }
 
     /**

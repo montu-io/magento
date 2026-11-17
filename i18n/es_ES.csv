@@ -82,6 +82,8 @@
 "Send an event when a category changes or is moved in the tree, including its products and menu settings.","Envía un evento cuando una categoría cambia o se mueve en el árbol, incluidos sus productos y su configuración de menú."
 "Send Category Deleted (collection.deleted)","Enviar categoría eliminada (collection.deleted)"
 "Send an event when a category is deleted.","Envía un evento cuando se elimina una categoría."
+"Brand attribute code","Código del atributo de marca"
+"Code of the product attribute that holds each product's brand (e.g. manufacturer or marca), sent to Montu with every product. Leave empty to send no brands.","Código del atributo de producto que guarda la marca de cada producto (p. ej. manufacturer o marca), que se envía a Montu con cada producto. Déjalo vacío para no enviar marcas."
 "Product / Category ID","ID de producto / categoría"
 "Skipped (nothing to send)","Omitido (nada que enviar)"
 "Store View ID","ID de vista de tienda"

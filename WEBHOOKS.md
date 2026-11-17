@@ -225,8 +225,8 @@ by default** (Stores > Configuration > Montu > Catalog Events, one switch each).
 
 - **Only changes Montu mirrors are recorded:** name, description, short description,
   URL key, status, visibility, price, special price and its dates, images (roles and
-  gallery), categories, websites, variant links and the attributes products are
-  configured by (e.g. color). **Stock is never recorded**: stock-only saves (admin,
+  gallery), categories, websites, variant links, the brand attribute and the attributes
+  products are configured by (e.g. color). **Stock is never recorded**: stock-only saves (admin,
   `PUT /V1/products` with only `stock_item`) are filtered out by comparing the saved
   values with the loaded ones, and the stock endpoints (`stockItems`, MSI
   `source-items`), checkout, refunds and stock-only CSV imports fire nothing the module
@@ -294,6 +294,7 @@ by default** (Stores > Configuration > Montu > Catalog Events, one switch each).
     "status": 1, "visibility": 4, "in_website": true,
     "price": null, "special_price": null, "special_from_date": null, "special_to_date": null,
     "category_ids": [3, 4],
+    "brand": {"id": "16948", "label": "REDKEN"},
     "created_at": "2026-11-13 14:15:04", "updated_at": "2026-11-13 14:15:04",
     "configurable_options": [{"code": "color", "label": "Tono"}],
     "variants": [
@@ -311,6 +312,19 @@ by default** (Stores > Configuration > Montu > Catalog Events, one switch each).
 - A configurable product has no price of its own (`null`); its `variants` do. Any
   other type has `variants: []` (Montu treats it as its own single variant).
 - `category_ids`: every category the product is in (complete list).
+- `brand` (v2.1): the product's maker brand, read from the product attribute named in
+  Stores > Configuration > Montu > Catalog Events > *Brand attribute code* (setting
+  `montu_affiliate/catalog/brand_attribute`, per store view, default `manufacturer`).
+  `{"id": <string>, "label": <string>}` for a dropdown (select) attribute:
+  `id` is the attribute option id as a string and `label` the option's label **in the
+  event's store view** (the first option of a multiselect). For a plain text attribute
+  `id` is `null` and `label` the text. `brand` is `null` when the product has no value,
+  the setting is empty or the attribute does not exist. A variant carries no brand of its
+  own: the configurable parent's brand is the product's. Changing a product's brand
+  records a `product.updated`. Renaming an option's label (Stores > Attributes) or changing
+  the *Brand attribute code* setting changes no product, so nothing is sent then: each
+  product carries its new brand on its next event. Re-save or re-import the products to
+  send them all at once.
 - A product whose body would be larger than the gateway accepts (~200 KB) is sent without
   `description` / `short_description` (both `null`) and with `"description_omitted": true`.
 
@@ -341,6 +355,7 @@ import delete). It can name a variant (see "Deletions are sent alone").
 
 - `webhook_version` is `2.1` for this contract. New optional fields can be added
   in a minor version; removing or changing a field's meaning is a major version.
-- `2.1` over `2.0`: `affiliate.link` (new, nullable). Nothing else changed, so a receiver that
-  ignores unknown fields reads `2.1` bodies as `2.0`.
+- `2.1` over `2.0`: `affiliate.link` (new, nullable) and `product.brand` in `product.created` /
+  `product.updated` (new, nullable). Nothing else changed, so a receiver that ignores unknown
+  fields reads `2.1` bodies as `2.0`.
 - Montu keeps accepting `1.0` bodies (`order.placed` only).

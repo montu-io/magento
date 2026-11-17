@@ -19,6 +19,8 @@ use Magento\Catalog\Model\Category;
 use Magento\Catalog\Model\Product;
 use Magento\ConfigurableProduct\Model\Product\Type\Configurable;
 use Magento\Store\Model\Store;
+use Magento\Store\Model\StoreManagerInterface;
+use Montu\Affiliate\Model\Config;
 
 class ChangeDetector
 {
@@ -63,10 +65,20 @@ class ChangeDetector
      */
     private VariantLinks $variantLinks;
 
+    /**
+     * @var Config
+     */
+    private Config $config;
 
     /**
-     * Codes of the attributes products are configured by (e.g. color); a change
-     * renames a variant. Read once per request, only when needed.
+     * @var StoreManagerInterface
+     */
+    private StoreManagerInterface $storeManager;
+
+    /**
+     * Codes of the attributes products are configured by (e.g. color; a change
+     * renames a variant) and of the brand attributes of every store view. Read
+     * once per request, only when needed.
      *
      * @var string[]|null
      */
@@ -74,10 +86,14 @@ class ChangeDetector
 
     /**
      * @param VariantLinks $variantLinks
+     * @param Config $config
+     * @param StoreManagerInterface $storeManager
      */
-    public function __construct(VariantLinks $variantLinks)
+    public function __construct(VariantLinks $variantLinks, Config $config, StoreManagerInterface $storeManager)
     {
         $this->variantLinks = $variantLinks;
+        $this->config = $config;
+        $this->storeManager = $storeManager;
     }
 
     /**
@@ -242,8 +258,12 @@ class ChangeDetector
                 return true;
             }
         }
+        // The standard CSV format puts every non-system attribute (manufacturer=REDKEN,
+        // color=Rojo) into additional_attributes, still unparsed in the saved bunch.
+        // A loose match is fine: content-hash dedupe drops an event that changed nothing.
+        $additional = ',' . (string) ($row['additional_attributes'] ?? '');
         foreach ($this->optionAttributeCodes() as $code) {
-            if (isset($row[$code]) && $row[$code] !== '') {
+            if ((isset($row[$code]) && $row[$code] !== '') || str_contains($additional, ',' . $code . '=')) {
                 return true;
             }
         }
@@ -372,12 +392,22 @@ class ChangeDetector
     }
 
     /**
+     * Option attributes plus the brand attribute of every store view (each store
+     * view may name its own)
+     *
      * @return string[]
      */
     private function optionAttributeCodes(): array
     {
         if ($this->optionAttributeCodes === null) {
-            $this->optionAttributeCodes = $this->variantLinks->optionAttributeCodes();
+            $codes = $this->variantLinks->optionAttributeCodes();
+            foreach ($this->storeManager->getStores() as $store) {
+                $brandCode = $this->config->getBrandAttributeCode((int) $store->getId());
+                if ($brandCode !== '') {
+                    $codes[] = $brandCode;
+                }
+            }
+            $this->optionAttributeCodes = array_values(array_unique($codes));
         }
 
         return $this->optionAttributeCodes;

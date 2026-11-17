@@ -36,6 +36,7 @@
                 <send_collection_created>0</send_collection_created>
                 <send_collection_updated>0</send_collection_updated>
                 <send_collection_deleted>0</send_collection_deleted>
+                <brand_attribute>manufacturer</brand_attribute>
             </catalog>
             <filters>
                 <orders_to_send>affiliate_code_or_coupon</orders_to_send>

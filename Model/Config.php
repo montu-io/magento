@@ -55,6 +55,7 @@ class Config
         EventType::COLLECTION_UPDATED => 'montu_affiliate/catalog/send_collection_updated',
         EventType::COLLECTION_DELETED => 'montu_affiliate/catalog/send_collection_deleted',
     ];
+    private const XML_PATH_CATALOG_BRAND_ATTRIBUTE = 'montu_affiliate/catalog/brand_attribute';
     private const XML_PATH_FILTERS_ORDERS_TO_SEND = 'montu_affiliate/filters/orders_to_send';
     private const XML_PATH_FILTERS_COUPON_PREFIXES = 'montu_affiliate/filters/coupon_prefixes';
     private const XML_PATH_FILTERS_EXCLUDED_GROUPS = 'montu_affiliate/filters/excluded_customer_groups';
@@ -585,6 +586,22 @@ class Config
         }
 
         return false;
+    }
+
+    /**
+     * Code of the product attribute that holds a product's brand (empty = no brands are sent)
+     *
+     * @param int|null $storeId
+     * @return string
+     */
+    public function getBrandAttributeCode(?int $storeId = null): string
+    {
+        // Attribute codes are lowercase; "Marca" would find the attribute but read no value.
+        return strtolower(trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_CATALOG_BRAND_ATTRIBUTE,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        )));
     }
 
     /**
